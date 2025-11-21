@@ -1,0 +1,9 @@
+[project]
+name = "alma"
+version = "0.0.1"
+dependencies = [
+    "requests>=2.25.0",
+]
+
+[project.scripts]
+alma = "alma.alma:main"
