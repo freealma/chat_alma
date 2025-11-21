@@ -1,8 +1,10 @@
 [project]
 name = "alma"
-version = "0.0.1"
+version = "0.1.1"
 dependencies = [
     "requests>=2.25.0",
+    "langchain>=0.1.0",
+    "python-dotenv>=1.0.0",
 ]
 
 [project.scripts]

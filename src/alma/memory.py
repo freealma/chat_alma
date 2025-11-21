@@ -2,7 +2,7 @@
 ---
 name: memory.py
 type: script
-version: 0.0.3
+version: 0.0.4
 changelog: "Reforma completa del sistema de creación automática de memorias"
 path: src/alma/memory.py
 description: "Módulo de gestión de memorias con sistema de aprendizaje evolutivo"
@@ -46,7 +46,8 @@ class MemoryManager:
     def __init__(self, db_path="/alma/db/alma.db", api_key=None):
         self.db_path = db_path
         self.api_key = api_key or os.getenv('DEEPSEEK_API_KEY')
-        
+        self.use_smart_search = True 
+
         # Sistema de aprendizaje adaptativo
         self.learning_metrics = {
             'total_conversations': 0,
@@ -520,7 +521,7 @@ APLICABILIDAD: {semantic_analysis.get('applicability', 'general')}
             'last_adaptation': self.learning_metrics['last_adaptation'].strftime('%Y-%m-%d %H:%M')
         }
 
-    # === MÉTODOS EXISTENTES MANTENIDOS (con mejoras menores) ===
+    # === MÉTODOS EXISTENTES MANTENIDOS ===
     
     def should_create_memory(self, question: str, answer: str) -> bool:
         """Método legacy - ahora usa el sistema de scoring completo"""
@@ -532,9 +533,11 @@ APLICABILIDAD: {semantic_analysis.get('applicability', 'general')}
         components = self.extract_knowledge_components(question, answer, {})
         return [comp.get('concept', '') for comp in components if comp.get('concept')]
     
-    # Mantener todos los demás métodos existentes sin cambios
     def _call_llm_api(self, prompt: str, max_tokens: int = 1000) -> str:
-        """Llamada a la API de DeepSeek (sin cambios)"""
+        """Llamada a la API de DeepSeek"""
+        if not self.api_key:
+            raise Exception("API key no configurada para LLM")
+            
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json"
@@ -558,24 +561,367 @@ APLICABILIDAD: {semantic_analysis.get('applicability', 'general')}
         return response.json()['choices'][0]['message']['content']
     
     def search_memories_enhanced(self, query: str, limit: int = 5, use_llm: bool = True) -> List[Dict[str, Any]]:
-        # ... (mantener implementación existente)
+        """Búsqueda mejorada que puede usar LLM para relevancia"""
+        if use_llm and self.api_key:
+            return self._search_with_llm_reranking(query, limit)
+        else:
+            return self.search_memories_simple(query, limit)
+    
+    def _search_with_llm_reranking(self, query: str, limit: int) -> List[Dict[str, Any]]:
+        """Búsqueda híbrida: keyword + re-ranking con LLM"""
+        # 1. Búsqueda inicial por keywords (rápida)
+        candidate_memories = self.search_memories_simple(query, limit * 2)
+        
+        if len(candidate_memories) <= 1:
+            return candidate_memories
+        
+        # 2. Re-ranking con LLM para los top candidatos
+        try:
+            ranked_indices = self._rerank_with_llm(query, candidate_memories)
+            reranked_memories = [candidate_memories[i] for i in ranked_indices[:limit]]
+            return reranked_memories
+        except Exception as e:
+            print(f"⚠️  Fallback a búsqueda simple: {e}")
+            return candidate_memories[:limit]
+    
+    def _rerank_with_llm(self, query: str, memories: List[Dict]) -> List[int]:
+        """Usa LLM para re-rankear memorias por relevancia"""
+        prompt = f"""Evalúa la relevancia de estas memorias con la consulta: "{query}"
+
+Memorias:
+{chr(10).join([f"{i+1}. {m['content'][:150]}..." for i, m in enumerate(memories)])}
+
+Devuelve SOLO los números de las 5 memorias más relevantes en orden descendente, separados por comas:"""
+
+        response = self._call_llm_api(prompt, max_tokens=100)
+        
+        # Parsear respuesta: "3, 1, 5, 2"
+        try:
+            ranked_numbers = [int(x.strip()) - 1 for x in response.split(',')]
+            return ranked_numbers
+        except:
+            # Fallback: devolver orden original
+            return list(range(len(memories)))
     
     def search_memories_simple(self, query, limit=5):
-        # ... (mantener implementación existente)
-    
-    def add_memory_enhanced(self, content: str, tags: List[str] = None, 
-                          memory_type: str = "context", importance: int = 2,
-                          related_to: str = None) -> bool:
-        # ... (mantener implementación existente)
+        """Búsqueda original por keywords"""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        words = [word for word in query.lower().split() if len(word) > 2]
+        
+        if not words:
+            cursor.execute('SELECT * FROM memories ORDER BY use_count DESC, importance DESC LIMIT ?', (limit,))
+        else:
+            conditions = []
+            params = []
+            for word in words:
+                conditions.append("(content LIKE ? OR tags LIKE ?)")
+                params.extend([f'%{word}%', f'%{word}%'])
+            
+            where_clause = " OR ".join(conditions)
+            sql = f'SELECT * FROM memories WHERE {where_clause} ORDER BY importance DESC, use_count DESC LIMIT ?'
+            params.append(limit)
+            cursor.execute(sql, params)
+        
+        results = [dict(row) for row in cursor.fetchall()]
+        
+        if results:
+            uuids = [row['uuid'] for row in results]
+            placeholders = ','.join(['?'] * len(uuids))
+            cursor.execute(f'UPDATE memories SET use_count = use_count + 1, last_used = CURRENT_TIMESTAMP WHERE uuid IN ({placeholders})', uuids)
+            conn.commit()
+        
+        conn.close()
+        return results
     
     def _init_db(self):
-        # ... (mantener implementación existente)
+        """Inicializa la DB con el schema"""
+        os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
+        
+        with open("/alma/schema.sql", "r") as f:
+            schema = f.read()
+        
+        conn = sqlite3.connect(self.db_path)
+        conn.executescript(schema)
+        conn.close()
+    
+    def add_memory(self, content, tags=None, memory_type="context"):
+        """Agregar una memoria simple"""
+        return self.add_memory_enhanced(content, tags, memory_type)
+    
+    def add_memory_enhanced(self, content: str, tags: List[str] = None, 
+                        memory_type: str = "context", importance: int = 2,
+                        related_to: str = None) -> bool:
+        """
+        Versión mejorada de add_memory con deduplicación inteligente
+        """
+        print(f"🔧 Intentando crear memoria: {content[:50]}...")
+        
+        # Verificar duplicados antes de insertar (menos agresivo)
+        is_duplicate = self._is_duplicate_memory(content)
+        print(f"   ¿Es duplicado?: {is_duplicate}")
+        
+        if is_duplicate:
+            print("🔍 Memoria similar existe, aumentando importancia...")
+            success = self._increase_existing_memory_importance(content)
+            if success:
+                print("✅ Importancia aumentada en memoria existente")
+            return success
+        
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute('''
+                INSERT INTO memories (content, tags, memory_type, importance, related_to)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (
+                content,
+                json.dumps(tags) if tags else '[]',
+                memory_type,
+                importance,
+                related_to
+            ))
+            
+            # Aplicar política LRU si es necesario
+            self._apply_lru_policy()
+            
+            conn.commit()
+            print("✅ Memoria creada exitosamente")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Error SQL guardando memoria: {e}")
+            conn.rollback()
+            return False
+        finally:
+            conn.close()
+
+    def _is_duplicate_memory(self, content: str) -> bool:
+        """
+        Verifica si ya existe una memoria similar - MENOS ESTRICTO
+        """
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        # Extraer palabras clave del contenido
+        words = self._extract_keywords(content)
+        print(f"   Palabras clave extraídas: {words[:3]}")
+        
+        if not words:
+            return False
+            
+        # Buscar coincidencias EXACTAS de contenido, no similares
+        cursor.execute('SELECT COUNT(*) FROM memories WHERE content = ?', (content,))
+        exact_match = cursor.fetchone()[0] > 0
+        
+        conn.close()
+        
+        if exact_match:
+            print("   ❗ Coincidencia EXACTA encontrada")
+            return True
+        
+        # Solo considerar duplicado si hay al menos 5 palabras clave en común
+        # y el contenido tiene alta similitud
+        if len(words) >= 5:
+            conditions = []
+            params = []
+            for word in words[:5]:  # Usar solo las 5 palabras más importantes
+                conditions.append("content LIKE ?")
+                params.append(f'%{word}%')
+            
+            where_clause = " AND ".join(conditions)  # CAMBIADO: OR → AND (más estricto)
+            sql = f'SELECT COUNT(*) FROM memories WHERE {where_clause}'
+            
+            cursor.execute(sql, params)
+            count = cursor.fetchone()[0]
+            
+            if count > 0:
+                print(f"   ❗ Similitud alta encontrada: {count} memorias similares")
+                return True
+        
+        print("   ✅ No se encontraron duplicados")
+        return False
+    
+    def _increase_existing_memory_importance(self, content: str) -> bool:
+        """Aumenta la importancia de una memoria existente similar"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        words = self._extract_keywords(content)
+        
+        if not words:
+            return False
+            
+        conditions = []
+        params = []
+        for word in words[:3]:
+            conditions.append("content LIKE ?")
+            params.append(f'%{word}%')
+        
+        where_clause = " OR ".join(conditions)
+        sql = f'UPDATE memories SET importance = MIN(5, importance + 1) WHERE {where_clause}'
+        
+        try:
+            cursor.execute(sql, params)
+            conn.commit()
+            return True
+        except:
+            conn.rollback()
+            return False
+        finally:
+            conn.close()
+    
+    def _extract_keywords(self, text: str) -> List[str]:
+        """Extrae palabras clave de un texto"""
+        stop_words = {
+            'el', 'la', 'los', 'las', 'de', 'en', 'y', 'o', 'pero', 'para', 
+            'con', 'sin', 'por', 'que', 'como', 'cuando', 'donde', 'porque'
+        }
+        
+        words = re.findall(r'\b[a-záéíóúñ]{3,20}\b', text.lower())
+        filtered_words = [word for word in words if word not in stop_words]
+        
+        # Contar frecuencia
+        word_count = {}
+        for word in filtered_words:
+            word_count[word] = word_count.get(word, 0) + 1
+        
+        sorted_words = sorted(word_count.items(), key=lambda x: x[1], reverse=True)
+        return [word for word, count in sorted_words[:10]]
     
     def optimize_memories(self) -> Dict[str, Any]:
-        # ... (mantener implementación existente)
-    
+        """Optimiza la base de memorias"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        try:
+            optimization_results = {}
+            
+            # 1. Eliminar duplicados SEMÁNTICOS (no solo exactos)
+            cursor.execute('''
+                WITH duplicates AS (
+                    SELECT uuid, content,
+                        LENGTH(content) as content_length,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY SUBSTR(content, 1, 100) 
+                            ORDER BY use_count DESC, importance DESC, content_length DESC
+                        ) as rn
+                    FROM memories
+                )
+                DELETE FROM memories 
+                WHERE uuid IN (SELECT uuid FROM duplicates WHERE rn > 1)
+            ''')
+            optimization_results['semantic_duplicates_removed'] = cursor.rowcount
+            
+            # 2. Eliminar duplicados EXACTOS (backup)
+            cursor.execute('''
+                DELETE FROM memories 
+                WHERE uuid NOT IN (
+                    SELECT MIN(uuid) 
+                    FROM memories 
+                    GROUP BY content
+                )
+            ''')
+            optimization_results['exact_duplicates_removed'] = cursor.rowcount
+            
+            # 3. Promocionar memorias muy usadas
+            cursor.execute('''
+                UPDATE memories 
+                SET importance = MIN(5, importance + 1)
+                WHERE use_count > 8 AND importance < 5
+            ''')
+            optimization_results['importance_increased'] = cursor.rowcount
+            
+            # 4. Degradar memorias nunca usadas
+            cursor.execute('''
+                UPDATE memories 
+                SET importance = GREATEST(1, importance - 1)
+                WHERE use_count = 0 AND importance > 1
+                AND last_used < datetime('now', '-30 days')
+            ''')
+            optimization_results['importance_decreased'] = cursor.rowcount
+            
+            # 5. Limpiar relaciones huérfanas
+            try:
+                cursor.execute('''
+                    DELETE FROM memory_relations 
+                    WHERE source_uuid NOT IN (SELECT uuid FROM memories)
+                    OR target_uuid NOT IN (SELECT uuid FROM memories)
+                ''')
+                optimization_results['orphaned_relations_removed'] = cursor.rowcount
+            except sqlite3.OperationalError:
+                optimization_results['orphaned_relations_removed'] = 0
+            
+            # 6. Reconstruir índices para mejor performance
+            cursor.execute('REINDEX idx_memories_content')
+            cursor.execute('REINDEX idx_memories_importance')
+            
+            # 7. Aplicar política LRU
+            lru_result = self._apply_lru_policy()
+            optimization_results.update(lru_result)
+            
+            conn.commit()
+            
+            # Mensaje resumen
+            total_optimizations = sum(optimization_results.values())
+            optimization_results['message'] = f'✅ Optimización completada: {total_optimizations} mejoras aplicadas'
+            
+            return optimization_results
+            
+        except Exception as e:
+            print(f"❌ Error optimizando memorias: {e}")
+            conn.rollback()
+            return {'error': str(e)}
+        finally:
+            conn.close()
+
     def _apply_lru_policy(self) -> Dict[str, Any]:
-        # ... (mantener implementación existente)
+        """Aplica política LRU y devuelve estadísticas"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute('SELECT COUNT(*) FROM memories')
+            current_count = cursor.fetchone()[0]
+            
+            max_memories = 500
+            lru_results = {'current_memories': current_count}
+            
+            if current_count > max_memories:
+                excess = current_count - max_memories
+                
+                # Eliminar las menos relevantes (combinación de uso + importancia + antigüedad)
+                cursor.execute('''
+                    DELETE FROM memories 
+                    WHERE uuid IN (
+                        SELECT uuid FROM memories 
+                        ORDER BY 
+                            (use_count * 0.4 + importance * 0.3 + 
+                            (julianday('now') - julianday(last_used)) * 0.3) ASC
+                        LIMIT ?
+                    )
+                ''', (excess,))
+                
+                lru_results['memories_removed'] = cursor.rowcount
+                lru_results['new_total'] = current_count - excess
+                
+                print(f"🧹 LRU policy: {excess} memorias eliminadas")
+            else:
+                lru_results['memories_removed'] = 0
+                lru_results['new_total'] = current_count
+                
+            conn.commit()
+            return lru_results
+            
+        except Exception as e:
+            print(f"❌ Error en LRU policy: {e}")
+            conn.rollback()
+            return {'error': str(e)}
+        finally:
+            conn.close()
 
 # Función de compatibilidad para el script de inyección
 def inject_sample_memories(memory_manager: MemoryManager):
