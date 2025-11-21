@@ -1,10 +1,17 @@
 """
 ---
-version: 0.0.1
-changelog: "Primera versión del paquete Alma"
+name: alma.py
+title: "Alma - Funcionalidad Principal"
+version: 0.0.2
+changelog: "Agregado soporte para búsqueda mejorada con LLM"
 path: src/alma/alma.py
 description: "Funcionalidad principal del paquete Alma"
 functions: [get_api_key, call_deepseek, main]
+functions_descriptions:
+  - get_api_key: "Obtiene la clave API de las variables de entorno"
+  - call_deepseek: "Llama a la API de DeepSeek con el mensaje y el contexto de memorias"
+  - main: "Función principal que maneja la interacción del usuario y el flujo del programa"
+tags: [alma, cli, deepseek, memoria]
 ---
 """
 #!/usr/bin/env python3
@@ -65,12 +72,18 @@ Responde de manera técnica y útil, basándote en la información anterior cuan
 def main():
     """Función principal"""
     api_key = get_api_key()
-    memory_manager = MemoryManager()
     
-    print("🤖 Alma CLI v0.1.0")
+    # ✅ CAMBIO IMPORTANTE: Pasar api_key al MemoryManager
+    memory_manager = MemoryManager(api_key=api_key)
+    
+    print("🤖 Alma CLI v0.0.2")
     print("💬 Chat con memoria persistente")
-    print("📝 Comandos: /add, /memories, /exit")
+    print("📝 Comandos: /add, /memories, /exit, /searchmode")
+    print("🔍 Modos de búsqueda: simple (rápido) | smart (con LLM)")
     print()
+    
+    # Variable para controlar el modo de búsqueda
+    use_smart_search = True  # Por defecto usar búsqueda inteligente
     
     # Forzar flush del output
     import sys
@@ -84,6 +97,13 @@ def main():
                 print("👋 ¡Hasta luego!")
                 break
             
+            # ✅ NUEVO COMANDO: Cambiar modo de búsqueda
+            if user_input == '/searchmode':
+                use_smart_search = not use_smart_search
+                mode = "smart (con LLM)" if use_smart_search else "simple (rápido)"
+                print(f"🔍 Modo de búsqueda cambiado a: {mode}")
+                continue
+            
             # Comando para agregar memoria
             if user_input.startswith('/add '):
                 content = user_input[5:].strip()
@@ -94,7 +114,8 @@ def main():
             
             # Comando para listar memorias
             if user_input == '/memories':
-                memories = memory_manager.search_memories("", limit=10)
+                # ✅ USAR BÚSQUEDA MEJORADA también para listar
+                memories = memory_manager.search_memories_enhanced("", limit=10, use_llm=use_smart_search)
                 print("\n📚 Últimas memorias:")
                 for i, mem in enumerate(memories, 1):
                     print(f"  {i}. {mem['content'][:80]}... (usos: {mem['use_count']})")
@@ -106,7 +127,22 @@ def main():
                 continue
             
             print("🔍 Buscando memorias relevantes...")
-            memories = memory_manager.search_memories(user_input)
+            
+            # ✅ CAMBIO PRINCIPAL: Usar búsqueda mejorada
+            search_mode = "smart" if use_smart_search else "simple"
+            print(f"   Modo: {search_mode}")
+            
+            memories = memory_manager.search_memories_enhanced(
+                user_input, 
+                use_llm=use_smart_search
+            )
+            
+            if memories and use_smart_search:
+                print(f"   ✅ Memorias encontradas (re-rankeadas por relevancia)")
+            elif memories:
+                print(f"   ✅ {len(memories)} memorias encontradas")
+            else:
+                print("   ℹ️  No se encontraron memorias relevantes")
             
             print("🤖 Generando respuesta...")
             response = call_deepseek(api_key, user_input, memories)

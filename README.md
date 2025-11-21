@@ -1,8 +1,13 @@
 ---
 date: 2025-04-06
-version: 0.0.1
+version: 0.0.2
 path: README.md
 description: "Alma chat cli con memoria persistente qe mejora."
+changelog: "Se agrega manejo de memorias con LLM en `memory.py` y `alma.py`"
+tags: 
+ - "alma"
+ - "cli"
+ - "doc"
 ---
 
 # 🤖 Alma CLI
@@ -16,6 +21,7 @@ Alma es una CLI que combina el poder de DeepSeek AI con un sistema de memorias q
 - 💬 **Chat interactivo** con DeepSeek AI
 - 🧠 **Memoria persistente** en SQLite con búsqueda inteligente
 - 🔍 **Búsqueda contextual** automática en conversaciones pasadas
+- 🧩 **Dos modos de búsqueda**: simple (rápido) y smart (con LLM)
 - 📝 **Comandos integrados** para gestionar memorias
 - 🐳 **Containerizado** con Docker para fácil despliegue
 - 🎯 **Especializado** en seguridad informática y programación
@@ -35,7 +41,7 @@ cd alma
 echo "DEEPSEEK_API_KEY=tu_api_key_aqui" > .env
 ```
 
-2. **Ejecuta:**
+2. **Construir y ejecutar:**
 ```bash
 docker build -t alma-cli .
 docker run -it --env-file .env -v $(pwd)/db:/alma/db alma-cli
@@ -50,13 +56,19 @@ docker run -it --env-file .env -v $(pwd)/db:/alma/db alma-cli
 # Comandos disponibles:
 🤖 Alma CLI v0.1.0
 💬 Chat con memoria persistente
-📝 Comandos: /add, /memories, /exit
+📝 Comandos: /add, /memories, /exit, /searchmode
+🔍 Modos de búsqueda: simple (rápido) | smart (con LLM)
+
+🧑 Tú: /searchmode
+🔍 Modo de búsqueda cambiado a: smart (con LLM)
 
 🧑 Tú: /add Los ataques XSS requieren validación de entrada
 ✅ Memoria guardada
 
 🧑 Tú: cómo prevenir xss?
 🔍 Buscando memorias relevantes...
+   Modo: smart
+   ✅ Memorias encontradas (re-rankeadas por relevancia)
 🤖 Generando respuesta...
 🤖 Alma: Basándome en memorias previas, para prevenir XSS...
 ```
@@ -65,7 +77,23 @@ docker run -it --env-file .env -v $(pwd)/db:/alma/db alma-cli
 
 - `/add <texto>` - Guardar nueva memoria
 - `/memories` - Listar memorias recientes  
+- `/searchmode` - Cambiar entre búsqueda simple/smart
 - `/exit` - Salir del programa
+
+## 🧠 Cargar Memorias Iniciales
+
+Después de ejecutar Alma por primera vez, carga las memorias base:
+
+```bash
+# Desde la raíz del proyecto
+./src/alma/utils/inject_memories.sh
+```
+
+Esto cargará 30 memorias sobre:
+- Estructura y funcionamiento de Alma
+- Comandos disponibles
+- Arquitectura técnica  
+- Visión futura como agente pentester
 
 ## 🏗️ Estructura del Proyecto
 
@@ -73,13 +101,17 @@ docker run -it --env-file .env -v $(pwd)/db:/alma/db alma-cli
 alma/
 ├── db/                 # Base de datos SQLite (volumen persistente)
 ├── doc/
-│   └── alma.md        # Documentación técnica completa
+│   ├── alma.md        # Documentación técnica completa
+│   └── changelog.md   # Historial de cambios
+├── src/alma/
+│   ├── alma.py        # CLI principal con búsqueda mejorada
+│   ├── memory.py      # Gestor de memorias con soporte LLM
+│   ├── __init__.py
+│   ├── __main__.py
+│   └── utils/
+│       └── inject_memories.sh  # Script de inicialización
 ├── meta/
 │   └── schema.sql     # Esquema de la base de datos
-├── src/alma/
-│   ├── alma.py        # CLI principal
-│   ├── memory.py      # Gestor de memorias
-│   └── __main__.py    # Entry point alternativo
 ├── Dockerfile
 ├── .env              # Configuración (API keys)
 └── pyproject.toml    # Dependencias Python
@@ -98,26 +130,15 @@ python -m alma
 python src/alma/alma.py
 ```
 
-## 📊 Schema de Base de Datos
-
-La base de datos utiliza un schema optimizado con:
-- **UUIDs únicos** para cada memoria
-- **Sistema de importancia** (1-5 estrellas)
-- **Contadores de uso** para relevancia
-- **Tipos de memoria** categorizados
-- **Búsqueda full-text** con tags
-
-Ver `meta/schema.sql` para detalles completos.
-
 ## 🐛 Troubleshooting
 
-**Problema**: El contenedor no muestra input
+**Problema**: El contenedor no muestra input  
 **Solución**: Usar `docker run` directo en lugar de docker-compose
 
-**Problema**: Error de API key
+**Problema**: Error de API key  
 **Solución**: Verificar que el archivo `.env` tenga `DEEPSEEK_API_KEY=tu_key`
 
-**Problema**: Módulo no encontrado
+**Problema**: Módulo no encontrado  
 **Solución**: Reconstruir la imagen con `docker build --no-cache`
 
 ## 🤝 Contribuir
@@ -130,13 +151,15 @@ Ver `meta/schema.sql` para detalles completos.
 
 ## 📄 Licencia
 
-Distribuido bajo MIT License. Ver `LICENSE` para más información.
+Distribuido bajo MIT License.
 
 ## 🆘 Soporte
 
 Si encuentras issues:
 1. Revisa la documentación en `doc/alma.md`
-2. Abre un issue en el repositorio
-3. Contacta al mantenedor
+2. Consulta el changelog en `doc/changelog.md`
+3. Abre un issue en el repositorio
 
 ---
+
+**Alma CLI v0.0.2** - Tu compañero inteligente para hacking y desarrollo 💻

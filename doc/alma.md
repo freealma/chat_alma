@@ -2,16 +2,16 @@
 version: 0.0.2
 path: alma.md
 description: "Terminal cli de ayuda resiliente que aprende de las conversaciones"
-changelog: "Se emprolijo bastante con deepseek"
+changelog: "Se documento la version 0.0.2 con manejo de memorias con LLM"
 ---
 
 # Alma CLI - Documentación Técnica
 
 ## 📋 Especificaciones Técnicas
 
-### Versión: 0.1.0
-**Estado**: MVP Funcional  
-**Última Actualización**: $(date)
+### Versión: 0.0.2
+**Estado**: MVP Mejorado con Búsqueda Inteligente  
+**Última Actualización**: 2025-11-21
 
 ## 🏗️ Arquitectura del Sistema
 
@@ -20,30 +20,36 @@ changelog: "Se emprolijo bastante con deepseek"
 ```
 Alma CLI Architecture
 ├── Frontend Layer
-│   └── alma.py (CLI Interface)
+│   └── alma.py (CLI Interface + Search Mode Controller)
 ├── Business Logic
-│   ├── MemoryManager (memory.py)
-│   └── DeepSeek API Client
+│   ├── MemoryManager (memory.py) - Búsqueda Híbrida
+│   │   ├── search_memories_simple() - Keywords
+│   │   └── search_memories_enhanced() - LLM Re-ranking
+│   └── DeepSeek API Client (Doble uso: Chat + Re-ranking)
 ├── Data Layer
-│   └── SQLite Database
+│   └── SQLite Database con Schema UUID
 └── Infrastructure
     └── Docker Container
 ```
 
-### Flujo de Datos
+### Flujo de Datos Mejorado
 
 ```mermaid
 graph TD
     A[User Input] --> B[CLI Parser]
     B --> C{Is Command?}
     C -->|Yes| D[Command Handler]
-    C -->|No| E[Memory Search]
-    D --> F[Execute Command]
-    E --> G[Context Building]
-    G --> H[DeepSeek API Call]
-    H --> I[Response Processing]
-    I --> J[Output to User]
-    F --> J
+    C -->|No| E{Search Mode?}
+    E -->|Simple| F[Keyword Search]
+    E -->|Smart| G[Hybrid Search]
+    F --> H[Context Building]
+    G --> I[LLM Re-ranking]
+    I --> H
+    D --> J[Execute Command]
+    H --> K[DeepSeek API Call]
+    K --> L[Response Processing]
+    L --> M[Output to User]
+    J --> M
 ```
 
 ## 🔌 Configuración
@@ -52,256 +58,258 @@ graph TD
 
 | Variable | Requerido | Default | Descripción |
 |----------|-----------|---------|-------------|
-| `DEEPSEEK_API_KEY` | ✅ | - | API Key de DeepSeek |
+| `DEEPSEEK_API_KEY` | ✅ | - | API Key para DeepSeek (Chat + Re-ranking) |
 | `DB_PATH` | ❌ | `/alma/db/alma.db` | Ruta de la base de datos |
 
-### Estructura de Configuración
+## 🧠 Sistema de Memoria Mejorado
 
-La aplicación utiliza **variables de entorno exclusivamente** para simplificar el deployment en Docker. No se utilizan archivos de configuración YAML/JSON.
+### Búsqueda Híbrida
+
+```python
+def search_memories_enhanced(query: str, use_llm: bool = True) -> List[Dict]:
+    """Búsqueda híbrida: keywords + optional LLM re-ranking"""
+    # 1. Búsqueda inicial por keywords
+    candidates = search_memories_simple(query, limit * 2)
+    
+    if use_llm and len(candidates) > 1:
+        # 2. Re-ranking con LLM para relevancia semántica
+        return rerank_with_llm(query, candidates)[:limit]
+    
+    return candidates[:limit]
+```
+
+### Algoritmos de Búsqueda
+
+#### Modo Simple (Keyword-based)
+- **Velocidad**: ⚡️ Muy rápido
+- **Precisión**: ✅ Buena para coincidencias exactas
+- **Uso**: Búsquedas generales, listado rápido
+
+#### Modo Smart (LLM-enhanced)  
+- **Velocidad**: 🐢 Moderado (+ llamada API)
+- **Precisión**: 🎯 Excelente relevancia semántica
+- **Uso**: Consultas complejas, contexto específico
+
+### Re-ranking con LLM
+
+```python
+def _rerank_with_llm(query: str, memories: List[Dict]) -> List[int]:
+    """Usa DeepSeek para ordenar memorias por relevancia"""
+    prompt = f"""Evalúa relevancia con: "{query}"
+    
+Memorias:
+{chr(10).join([f"{i+1}. {m['content'][:150]}..." for i, m in enumerate(memories)])}
+
+Devuelve SOLO números de las 5 más relevantes en orden:"""
+    
+    response = _call_llm_api(prompt, max_tokens=100)
+    return parse_ranked_indices(response)
+```
 
 ## 🗄️ Base de Datos
 
-### Schema Design
+### Schema Design (Sin Cambios)
 
 ```sql
--- Tabla principal de memorias
+-- Tabla principal de memorias (UUID-based)
 CREATE TABLE IF NOT EXISTS memories (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    uuid TEXT UNIQUE NOT NULL DEFAULT (generate_uuid()),
+    uuid TEXT UNIQUE NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-a' || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
     content TEXT NOT NULL,
     tags TEXT,
     project TEXT,
     theme TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     importance INTEGER DEFAULT 2 CHECK (importance BETWEEN 1 AND 5),
-    related_to TEXT CHECK(related_to IN (
-        'architecture', 'philosophy', 'pentesting', 'programming'
-    )),
-    memory_type TEXT CHECK(memory_type IN (
-        'institutional', 'context', 'alma', 'bird', 
-        'architecture', 'structure', 'function'
-    )),
+    related_to TEXT CHECK(related_to IN ('architecture', 'philosophy', 'pentesting', 'programming')),
+    memory_type TEXT CHECK(memory_type IN ('institutional', 'context', 'alma', 'bird', 'architecture', 'structure', 'function')),
     use_count INTEGER DEFAULT 0,
     last_used DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 ```
 
-### Índices Optimizados
+### Inicialización de Datos
 
-- `idx_memories_content` - Búsqueda full-text
-- `idx_memories_tags` - Búsqueda por tags
-- `idx_memories_importance` - Ordenamiento por relevancia
-- `idx_memories_use_count` - Políticas LRU
+```bash
+# Cargar 30 memorias base sobre Alma
+./src/alma/utils/inject_memories.sh
+```
 
-### Políticas de Datos
+Las memorias incluyen:
+- **Institutional**: Conocimiento fundamental del sistema
+- **Structure**: Arquitectura y componentes
+- **Function**: Comportamiento y comandos
+- **Alma**: Visión y roadmap futuro
 
-- **LRU Eviction**: Máximo 500 memorias, elimina las menos usadas
-- **Importancia Dinámica**: Memorias usadas frecuentemente aumentan importancia
-- **Deduplicación**: Contenido idéntico se mergea automáticamente
+## 🔍 Algoritmos de Búsqueda Actualizados
 
-## 🔍 Algoritmo de Búsqueda
-
-### Extracción de Keywords
+### Extracción de Keywords (Modo Simple)
 
 ```python
 def _extract_keywords(text: str) -> List[str]:
-    # Filtrado de stop words en español
-    stop_words = {'el', 'la', 'los', 'las', 'de', 'en', 'y', 'o', ...}
+    stop_words = {'el', 'la', 'los', 'las', 'de', 'en', 'y', 'o', 'pero', 'para'}
     words = re.findall(r'\b[a-záéíóúñ]{3,20}\b', text.lower())
     return [word for word in words if word not in stop_words][:10]
 ```
 
-### Scoring de Relevancia
+### Scoring Híbrido (Modo Smart)
 
-1. **Coincidencia de Keywords** (60% peso)
-2. **Importancia de Memoria** (25% peso) 
-3. **Frecuencia de Uso** (15% peso)
+1. **Coincidencia Keywords** (Búsqueda inicial)
+2. **Re-ranking Semántico** (LLM evaluation)
+3. **Importancia + Uso** (Ordenamiento final)
 
-### Query Construction
+## 🤖 Integración DeepSeek API
 
-```sql
-SELECT * FROM memories 
-WHERE (content LIKE ? OR tags LIKE ?)
-ORDER BY importance DESC, use_count DESC
-LIMIT 5
-```
+### Uso Doble de la API
 
-## 🤖 Integración con DeepSeek API
-
-### Request Format
-
-```json
-{
-  "model": "deepseek-chat",
-  "messages": [
-    {
-      "role": "system",
-      "content": "Eres Alma, asistente especializado...\nMEMORIAS RELEVANTES:\n- memoria1\n- memoria2"
-    },
-    {
-      "role": "user", 
-      "content": "mensaje del usuario"
-    }
-  ],
-  "temperature": 0.7,
-  "max_tokens": 1000
+#### 1. Generación de Respuestas
+```python
+# Chat principal
+data = {
+    "model": "deepseek-chat",
+    "messages": [
+        {"role": "system", "content": f"Eres Alma...\n{context}"},
+        {"role": "user", "content": message}
+    ],
+    "temperature": 0.7,
+    "max_tokens": 1000
 }
 ```
 
-### Context Building
-
-El sistema construye contexto dinámicamente:
-
-```
-MEMORIAS RELEVANTES:
-- Los ataques XSS requieren validación de entrada
-- SQL injection se previene con prepared statements
-- Nmap es esencial para escaneo de redes
+#### 2. Re-ranking de Memorias
+```python
+# Re-ranking optimizado
+data = {
+    "model": "deepseek-chat", 
+    "messages": [{"role": "user", "content": rerank_prompt}],
+    "temperature": 0.1,  # Baja para consistencia
+    "max_tokens": 100    # Respuesta corta
+}
 ```
 
 ## 🐳 Docker Implementation
 
-### Build Optimization
+### Build Optimizado
 
 ```dockerfile
-# Multi-stage build ready
 FROM python:3.11-alpine
 
-# Layer caching optimizado
+WORKDIR /alma
+
+RUN apk add --no-cache sqlite
+
 COPY pyproject.toml .
 RUN pip install --no-cache-dir -e .
 
+COPY meta/schema.sql .
 COPY src/ ./src/
-# Los datos se persisten via volumes
+RUN mkdir -p db
+
+CMD ["python", "-c", "from alma.alma import main; main()"]
 ```
 
-### Volume Strategy
-
-- `./db:/alma/db` - Base de datos persistente
-- Los schemas se copian en build time
-- Configuración via environment variables
-
-### Network Considerations
-
-- **Timeout**: 30 segundos para API calls
-- **Retry Logic**: Implementada a nivel de aplicación
-- **Health Checks**: Validación de BD al inicio
-
-## 🧪 Testing Strategy
-
-### Pruebas Unitarias Recomendadas
-
-```python
-# tests/test_memory.py
-def test_memory_search_relevance():
-    manager = MemoryManager()
-    results = manager.search_memories("pentesting tools")
-    assert len(results) <= 5
-    assert all('pentesting' in r['content'].lower() for r in results)
-
-def test_memory_persistence():
-    manager = MemoryManager()
-    initial_count = manager.get_stats()['total_memories']
-    manager.add_memory("test memory")
-    assert manager.get_stats()['total_memories'] == initial_count + 1
-```
-
-### Integration Testing
+### Ejecución Recomendada
 
 ```bash
-# Test completo del flujo
-echo "TEST: Basic functionality"
-docker run -it --env-file .env alma-cli <<EOF
-/add test memory
-¿qué es testing?
-exit
-EOF
+# Build una vez
+docker build -t alma-cli .
+
+# Ejecutar interactivamente
+docker run -it --env-file .env -v $(pwd)/db:/alma/db alma-cli
 ```
 
-## 📈 Métricas y Monitoreo
+## 📊 Métricas y Monitoreo
 
 ### Estadísticas Recopiladas
 
-- Total de memorias en base de datos
-- Distribución por importancia (1-5 estrellas)
-- Memorias nunca utilizadas
-- Tasa de uso promedio
-- Relaciones entre memorias
+- Total de memorias y distribución por tipo
+- Eficiencia de búsqueda (simple vs smart)
+- Tasa de uso de memorias
+- Performance de llamadas API
 
-### Comando de Estadísticas
+### Comandos de Diagnóstico
 
 ```bash
-🧑 Tú: /stats
-📊 Estadísticas de Memorias:
-  Total: 47
-  Uso promedio: 2.3
-  Sin usar: 5
-  Distribución por importancia:
-    1⭐: 3
-    2⭐: 15  
-    3⭐: 20
-    4⭐: 7
-    5⭐: 2
+🧑 Tú: /searchmode
+🔍 Modo de búsqueda cambiado a: smart (con LLM)
+
+🧑 Tú: /memories
+📚 Últimas memorias (re-rankeadas por relevancia):
+  1. Alma es un CLI chat especializado... (usos: 5)
+  2. El sistema de Alma usa SQLite con UUIDs... (usos: 3)
 ```
 
 ## 🔒 Consideraciones de Seguridad
 
 ### API Key Management
-
-- Las keys se injectan via environment variables
-- Nunca se commitean al repositorio
-- Rotación recomendada cada 90 días
+- **Doble uso**: Misma key para chat y re-ranking
+- **Rate limiting**: Control de llamadas consecutivas
+- **Timeout**: 30 segundos por defecto
 
 ### Data Protection
-
-- Base de datos local, sin datos sensibles en la nube
-- Solo metadata de conversaciones, no contenido crítico
-- UUIDs en lugar de IDs secuenciales para anonimización
+- **Local-first**: Toda la data permanece local
+- **UUIDs**: Identificadores anónimos
+- **No PII**: Solo contenido técnico, no datos personales
 
 ## 🚀 Roadmap
 
-### V0.2.0 (Próxima)
-- [ ] Sistema de relaciones entre memorias
-- [ ] Comando de optimización de BD
-- [ ] Export/import de memorias
-- [ ] Búsqueda avanzada con operadores
+### V0.1.0 (Próxima)
+- [ ] Comando `/stats` para métricas del sistema
+- [ ] Comando `/optimize` para mantenimiento de BD
+- [ ] Cache de embeddings para búsquedas más rápidas
+- [ ] Sistema de plugins para herramientas de pentesting
 
-### V0.3.0 (Futuro)  
-- [ ] Multi-modal (imágenes, documentos)
-- [ ] Plugins system
-- [ ] Web interface
-- [ ] API REST
+### V0.2.0 (Futuro)
+- [ ] Integración con nmap, metasploit, burp suite
+- [ ] Sistema de relaciones entre memorias
+- [ ] Export/import de bases de conocimiento
+- [ ] API REST para integraciones
+
+## 🧪 Testing Strategy
+
+### Pruebas de Búsqueda Híbrida
+
+```python
+def test_hybrid_search_fallback():
+    """Prueba fallback a búsqueda simple cuando LLM falla"""
+    manager = MemoryManager(api_key="invalid_key")
+    results = manager.search_memories_enhanced("test query", use_llm=True)
+    assert len(results) > 0  # Debe fallar gracefulmente a simple search
+
+def test_search_mode_switching():
+    """Prueba cambio entre modos de búsqueda"""
+    # Verificar que /searchmode alterna correctamente
+```
 
 ## 🐛 Troubleshooting Avanzado
 
-### Error: Database Locked
+### Error: LLM Re-ranking Timeout
+**Síntoma**: Búsqueda smart muy lenta
+**Solución**: Cambiar a modo simple con `/searchmode`
 
-**Causa**: Múltiples instancias accediendo la misma BD
-**Solución**: Asegurar solo una instancia por volumen
+### Error: API Rate Limit Exceeded
+**Síntoma**: Errores 429 en búsquedas smart
+**Solución**: Sistema automáticamente usa fallback a simple
 
-### Error: API Rate Limit
-
-**Síntoma**: Timeouts o errores 429
-**Solución**: Implementar exponential backoff
-
-### Error: Memory Corruption
-
-**Síntoma**: Búsquedas retornan resultados inconsistentes
-**Solución**: Ejecutar `/optimize` para reparar índices
+### Error: Memory Consistency
+**Síntoma**: Resultados inconsistentes entre modos
+**Solución**: Ejecutar script de inicialización para reset
 
 ## 🔗 Dependencies
 
 ### Runtime
 - `python:3.11-alpine` - Base image optimizada
-- `requests>=2.25.0` - HTTP client
+- `requests>=2.25.0` - HTTP client para DeepSeek API
 - `sqlite3` - Base de datos embebida
 
-### Development
-- `pytest` - Testing framework
-- `black` - Code formatting
-- `mypy` - Type checking
+### No Dependencies Externas
+- **Sin vector databases** - Búsqueda semántica via API
+- **Sin ORM complejo** - SQLite directo
+- **Sin web frameworks** - CLI puro
 
 ---
 
 **Documentación Mantenida por**: Alma CLI Team  
-**Última Revisión**: $(date)
+**Última Revisión**: 2024-04-06  
+**Versión Documentada**: 0.0.2
+```
