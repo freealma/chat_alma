@@ -1,3 +1,7 @@
+---
+version: 0.0.1
+---
+
 # Contexto chat alma cli
 
 Vamos a replantear con la siguiente estrctura , qe no cargue logs de la conversacion pero qe si pueda cargar memorias dentro del chat
