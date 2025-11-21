@@ -2,34 +2,28 @@
 ---
 name: memory.py
 type: script
-version: 0.0.4
-changelog: "Reforma completa del sistema de creación automática de memorias"
+version: 0.0.5
+changelog: "Sistema de contexto inteligente, respuestas naturales, optimización de búsquedas"
 path: src/alma/memory.py
-description: "Módulo de gestión de memorias con sistema de aprendizaje evolutivo"
+description: "Módulo de gestión de memorias con contexto inteligente"
 functional_changes: 
-  - "Sistema de scoring multi-capa para detección de conversaciones importantes"
-  - "Extracción inteligente con LLM obligatorio para análisis semántico"
-  - "Memorias compuestas que agrupan conocimiento relacionado"
-  - "Sistema de aprendizaje adaptativo con umbrales dinámicos"
-  - "Métricas completas y retroalimentación automática"
+  - "Nuevo método get_context_summary para resúmenes naturales"
+  - "Búsquedas optimizadas con mejor extracción de temas"
+  - "Sistema de scoring ajustado para mejor calidad"
+  - "Reducción de verbosidad en logs"
 functions_added:
-  - calculate_conversation_score
-  - analyze_semantic_importance
-  - extract_knowledge_components
-  - create_composite_memory
-  - update_learning_parameters
-  - get_learning_metrics
-  - should_create_composite_memory
-functions_modified:
-  - create_memory_from_conversation (completamente reformado)
-  - should_create_memory (sistema de scoring multi-capa)
-  - extract_important_concepts (LLM obligatorio con análisis profundo)
+  - get_context_summary
+  - _extract_main_topics
+  - _calculate_relevance_score
+functions_improved:
+  - search_memories_enhanced (más eficiente)
+  - create_memory_from_conversation (menos verboso)
+  - _call_llm_api (mejor manejo de errores)
 tags:
   - memory
-  - llm
-  - learning-evolution
-  - semantic-analysis
-  - adaptive-thresholds
+  - context
+  - natural-language
+  - optimization
 ---
 """
 import sqlite3
@@ -54,7 +48,7 @@ class MemoryManager:
             'memories_created': 0,
             'success_rate': 0.0,
             'avg_conversation_score': 0.0,
-            'adaptation_threshold': 0.6,  # Umbral dinámico inicial
+            'adaptation_threshold': 0.6,
             'last_adaptation': datetime.now(),
             'conversation_patterns': {}
         }
@@ -62,13 +56,81 @@ class MemoryManager:
         self._init_db()
         self._load_learning_metrics()
     
+    def get_context_summary(self, query: str, limit: int = 3) -> str:
+        """
+        Devuelve un resumen natural del contexto relevante
+        En lugar de listar memorias, extrae temas principales
+        """
+        memories = self.search_memories_enhanced(query, limit=limit)
+        
+        if not memories:
+            return ""
+        
+        # Extraer temas principales de las memorias
+        topics = self._extract_main_topics(memories)
+        
+        if len(topics) == 1:
+            return f"Tengo conocimiento sobre: {topics[0]}"
+        elif len(topics) > 1:
+            topics_str = ", ".join(topics[:-1]) + " y " + topics[-1]
+            return f"Conozco sobre: {topics_str}"
+        else:
+            return ""
+    
+    def _extract_main_topics(self, memories: List[Dict]) -> List[str]:
+        """Extrae los temas principales de una lista de memorias"""
+        topics = set()
+        
+        for memory in memories:
+            content = memory['content']
+            
+            # Extraer de tags si están disponibles
+            try:
+                tags = json.loads(memory.get('tags', '[]'))
+                if tags and isinstance(tags, list):
+                    topics.add(tags[0])
+                    continue
+            except:
+                pass
+            
+            # Extraer tema del contenido
+            lines = content.split('\n')
+            for line in lines[:3]:  # Solo primeras líneas
+                line = line.strip()
+                if line and len(line) > 10 and not line.startswith('---'):
+                    # Buscar patrones comunes
+                    if 'CONCEPTO PRINCIPAL:' in line:
+                        topic = line.split('CONCEPTO PRINCIPAL:')[-1].strip()
+                        if topic:
+                            topics.add(topic.split('.')[0])  # Primera frase
+                            break
+                    elif 'CONSULTA:' in line:
+                        topic = line.split('CONSULTA:')[-1].strip()
+                        if topic and len(topic) > 5:
+                            # Extraer palabras clave de la consulta
+                            words = [w for w in topic.split() if len(w) > 3][:3]
+                            if words:
+                                topics.add(' '.join(words))
+                                break
+                    else:
+                        # Usar primeras palabras significativas
+                        words = [w for w in line.split() if len(w) > 4][:2]
+                        if words:
+                            topics.add(' '.join(words))
+                            break
+            
+            # Limitar número de temas
+            if len(topics) >= 4:
+                break
+        
+        return list(topics)[:3]  # Máximo 3 temas
+    
     def _load_learning_metrics(self):
         """Carga métricas de aprendizaje desde la base de datos"""
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
             
-            # Cargar estadísticas históricas
             cursor.execute('SELECT COUNT(*) FROM memories WHERE memory_type != "institutional"')
             memory_count = cursor.fetchone()[0]
             
@@ -81,70 +143,56 @@ class MemoryManager:
             
             conn.close()
         except Exception as e:
-            print(f"⚠️  Error cargando métricas de aprendizaje: {e}")
+            print(f"⚠️  Error cargando métricas: {e}")
     
     def create_memory_from_conversation(self, question: str, answer: str, conversation_history: List[Dict] = None) -> bool:
         """
-        Sistema reformado de creación automática de memorias con scoring multi-capa
+        Sistema de creación automática de memorias - versión optimizada
         """
         self.learning_metrics['total_conversations'] += 1
         
-        print(f"🧠 [Sistema Evolutivo] Analizando conversación #{self.learning_metrics['total_conversations']}")
-        print(f"   📝 Pregunta: {question[:80]}...")
-        print(f"   💬 Respuesta: {answer[:80]}...")
-        
-        # 1. Calcular score multi-capa
+        # Calcular score multi-capa
         conversation_score, score_breakdown = self.calculate_conversation_score(question, answer, conversation_history)
-        print(f"   📊 Score: {conversation_score:.2f} (Umbral: {self.learning_metrics['adaptation_threshold']:.2f})")
-        print(f"   🔍 Desglose: {score_breakdown}")
         
-        # 2. Verificar si supera el umbral adaptativo
+        # Verificar si supera el umbral adaptativo
         if conversation_score < self.learning_metrics['adaptation_threshold']:
-            print(f"   ❌ Score insuficiente para crear memoria")
             self._update_conversation_patterns(question, answer, False)
             return False
         
         try:
-            # 3. Análisis semántico profundo con LLM
-            print("   🔬 Realizando análisis semántico profundo...")
+            # Análisis semántico profundo con LLM
             semantic_analysis = self.analyze_semantic_importance(question, answer)
             
             if not semantic_analysis.get('is_valuable', False):
-                print(f"   ❌ Análisis semántico: No es conocimiento valioso")
                 self._update_conversation_patterns(question, answer, False)
                 return False
             
-            # 4. Extraer componentes de conocimiento
+            # Extraer componentes de conocimiento
             knowledge_components = self.extract_knowledge_components(question, answer, semantic_analysis)
-            print(f"   📚 Componentes extraídos: {len(knowledge_components)}")
             
-            # 5. Verificar si debería crear memoria compuesta
+            # Crear memoria apropiada
             if self.should_create_composite_memory(question, knowledge_components):
                 success = self.create_composite_memory(question, answer, knowledge_components, conversation_history)
             else:
-                # 6. Crear memoria individual
                 success = self._create_individual_memory(question, answer, knowledge_components, semantic_analysis)
             
-            # 7. Actualizar métricas de aprendizaje
+            # Actualizar métricas
             self._update_learning_metrics(success, conversation_score)
             self._update_conversation_patterns(question, answer, success)
             
             if success:
-                print("   ✅ Memoria creada exitosamente")
                 self.learning_metrics['memories_created'] += 1
-            else:
-                print("   ❌ Error en la creación de memoria")
                 
             return success
             
         except Exception as e:
-            print(f"⚠️  Error en creación automática de memoria: {e}")
+            print(f"⚠️  Error creando memoria: {e}")
             self._update_conversation_patterns(question, answer, False)
             return False
     
     def calculate_conversation_score(self, question: str, answer: str, conversation_history: List[Dict] = None) -> Tuple[float, Dict]:
         """
-        Calcula score 0-1 basado en múltiples factores con pesos adaptativos
+        Calcula score 0-1 basado en múltiples factores - versión optimizada
         """
         scores = {}
         
@@ -152,9 +200,8 @@ class MemoryManager:
         try:
             semantic_score = self._calculate_semantic_score(question, answer)
             scores['semantic'] = semantic_score
-        except Exception as e:
-            print(f"   ⚠️  Fallback en análisis semántico: {e}")
-            scores['semantic'] = 0.3  # Fallback conservador
+        except Exception:
+            scores['semantic'] = 0.3
         
         # 2. Indicadores técnicos (30%)
         technical_score = self._calculate_technical_score(question, answer)
@@ -180,55 +227,39 @@ class MemoryManager:
     
     def _calculate_semantic_score(self, question: str, answer: str) -> float:
         """Calcula score basado en análisis semántico con LLM"""
-        prompt = f"""Analiza el valor educativo de esta conversación:
+        prompt = f"""Evalúa el valor educativo de esta conversación (1-10):
 
-PREGUNTA: {question}
-RESPUESTA: {answer}
+P: {question}
+R: {answer}
 
-Evalúa del 1 al 10:
-1. ¿Es conocimiento técnico específico?
-2. ¿Contiene procedimientos o metodologías?
-3. ¿Es aplicable en múltiples contextos?
-4. ¿Corrige conceptos erróneos?
-5. ¿Proporciona mejores prácticas?
-
-Devuelve SOLO el promedio numérico:"""
+Considera: especificidad técnica, utilidad práctica, aplicabilidad.
+Devuelve solo el número:"""
 
         try:
-            response = self._call_llm_api(prompt, max_tokens=50)
+            response = self._call_llm_api(prompt, max_tokens=20)
             score = float(response.strip())
-            return score / 10.0  # Normalizar a 0-1
+            return score / 10.0
         except:
-            return 0.5  # Fallback
+            return 0.5
     
     def _calculate_technical_score(self, question: str, answer: str) -> float:
-        """Calcula score basado en indicadores técnicos"""
+        """Calcula score basado en indicadores técnicos - optimizado"""
         score = 0.0
         text = f"{question} {answer}".lower()
         
-        # Indicadores técnicos fuertes
-        strong_indicators = [
+        # Indicadores técnicos
+        tech_indicators = [
             'python', 'sql', 'nmap', 'metasploit', 'docker', 'api', 'http',
             'vulnerability', 'exploit', 'authentication', 'encryption',
-            'algorithm', 'function', 'class', 'database', 'network'
-        ]
-        
-        # Indicadores de procedimiento
-        procedure_indicators = [
-            'cómo', 'paso a paso', 'procedimiento', 'configurar', 'instalar',
-            'implementar', 'solucionar', 'depurar', 'optimizar'
+            'algorithm', 'function', 'database', 'network', 'security'
         ]
         
         # Puntos por indicadores técnicos
-        tech_count = sum(1 for indicator in strong_indicators if indicator in text)
-        score += min(0.5, tech_count * 0.1)
+        tech_count = sum(1 for indicator in tech_indicators if indicator in text)
+        score += min(0.5, tech_count * 0.08)
         
-        # Puntos por indicadores de procedimiento
-        proc_count = sum(1 for indicator in procedure_indicators if indicator in text)
-        score += min(0.3, proc_count * 0.15)
-        
-        # Puntos por longitud y estructura
-        if len(answer.split()) > 50:
+        # Puntos por estructura de respuesta
+        if len(answer.split()) > 30:  # Menos estricto
             score += 0.2
         
         return min(1.0, score)
@@ -237,166 +268,116 @@ Devuelve SOLO el promedio numérico:"""
         """Calcula score basado en patrones históricos"""
         question_key = question.lower().strip()
         
-        # Verificar si es un patrón recurrente
         for pattern, data in self.learning_metrics['conversation_patterns'].items():
             if pattern in question_key:
                 success_rate = data['successes'] / max(1, data['attempts'])
                 return success_rate
         
-        return 0.3  # Score base para nuevos patrones
+        return 0.3
     
     def _calculate_context_score(self, question: str, answer: str, conversation_history: List[Dict] = None) -> float:
         """Calcula score basado en contexto conversacional"""
         if not conversation_history:
             return 0.2
         
-        # Verificar si continúa una conversación técnica previa
         recent_technical = any(
-            any(word in msg.get('content', '').lower() for word in ['python', 'sql', 'nmap', 'security'])
-            for msg in conversation_history[-3:]  # Últimos 3 mensajes
+            any(word in msg.get('content', '').lower() for word in ['python', 'sql', 'nmap', 'security', 'hack'])
+            for msg in conversation_history[-3:]
         )
         
         return 0.6 if recent_technical else 0.2
     
     def analyze_semantic_importance(self, question: str, answer: str) -> Dict[str, Any]:
         """
-        Análisis semántico profundo con LLM para determinar valor del conocimiento
+        Análisis semántico profundo con LLM - versión optimizada
         """
-        prompt = f"""Analiza esta conversación y determina su valor como conocimiento:
+        prompt = f"""Analiza esta conversación:
 
-PREGUNTA: {question}
-RESPUESTA: {answer}
+P: {question}
+R: {answer}
 
-Responde en formato JSON:
+Responde en JSON:
 {{
     "is_valuable": boolean,
     "knowledge_type": "conceptual" | "procedural" | "factual" | "methodological",
-    "complexity_level": 1-5,
-    "applicability": "específico" | "general" | "especializado",
-    "key_insights": ["insight1", "insight2", ...],
-    "recommended_tags": ["tag1", "tag2", ...]
+    "key_insights": ["insight1", "insight2"]
 }}"""
 
         try:
-            response = self._call_llm_api(prompt, max_tokens=500)
+            response = self._call_llm_api(prompt, max_tokens=300)
             analysis = json.loads(response.strip())
             return analysis
         except Exception as e:
-            print(f"   ⚠️  Error en análisis semántico: {e}")
-            # Fallback básico
             return {
-                "is_valuable": len(answer) > 100,
+                "is_valuable": len(answer) > 80,
                 "knowledge_type": "factual",
-                "complexity_level": 2,
-                "applicability": "general",
-                "key_insights": [],
-                "recommended_tags": ["fallback"]
+                "key_insights": []
             }
     
     def extract_knowledge_components(self, question: str, answer: str, semantic_analysis: Dict) -> List[Dict]:
         """
-        Extrae componentes estructurados de conocimiento usando LLM
+        Extrae componentes de conocimiento - versión optimizada
         """
-        prompt = f"""Extrae los componentes de conocimiento de esta conversación:
+        prompt = f"""Extrae componentes clave:
 
-PREGUNTA: {question}
-RESPUESTA: {answer}
+P: {question}
+R: {answer}
 
-ANÁLISIS SEMÁNTICO: {json.dumps(semantic_analysis, ensure_ascii=False)}
-
-Extrae en formato JSON:
+JSON:
 {{
     "components": [
         {{
-            "concept": "nombre del concepto",
-            "explanation": "explicación clara",
-            "category": "categoría técnica",
-            "importance": 1-5,
-            "relationships": ["concepto_relacionado1", ...]
+            "concept": "concepto principal",
+            "category": "categoría",
+            "importance": 1-3
         }}
     ]
 }}"""
 
         try:
-            response = self._call_llm_api(prompt, max_tokens=800)
+            response = self._call_llm_api(prompt, max_tokens=400)
             components_data = json.loads(response.strip())
             return components_data.get('components', [])
-        except Exception as e:
-            print(f"   ⚠️  Error extrayendo componentes: {e}")
-            # Fallback: crear componente básico
+        except Exception:
             return [{
                 "concept": "Conocimiento técnico",
-                "explanation": answer[:200],
                 "category": "general",
-                "importance": 2,
-                "relationships": []
+                "importance": 2
             }]
     
     def should_create_composite_memory(self, question: str, knowledge_components: List[Dict]) -> bool:
-        """
-        Determina si se debe crear una memoria compuesta
-        """
-        if len(knowledge_components) <= 1:
-            return False
-        
-        # Verificar si hay múltiples conceptos relacionados
-        unique_categories = len(set(comp.get('category', '') for comp in knowledge_components))
-        total_relationships = sum(len(comp.get('relationships', [])) for comp in knowledge_components)
-        
-        return unique_categories >= 2 or total_relationships >= 3
+        """Determina si crear memoria compuesta"""
+        return len(knowledge_components) > 2
     
     def create_composite_memory(self, question: str, answer: str, knowledge_components: List[Dict], conversation_history: List[Dict] = None) -> bool:
-        """
-        Crea una memoria compuesta que agrupa conocimiento relacionado
-        """
-        print("   🧩 Creando memoria compuesta...")
-        
-        # Generar contenido estructurado
-        composite_content = f"""MEMORIA COMPUESTA - CONOCIMIENTO INTEGRADO
+        """Crea memoria compuesta - versión optimizada"""
+        composite_content = f"""CONOCIMIENTO INTEGRADO
 
 CONTEXTO: {question}
 
-COMPONENTES DE CONOCIMIENTO:
+COMPONENTES:
 """
         
         for i, component in enumerate(knowledge_components, 1):
-            composite_content += f"""
-{i}. {component.get('concept', 'Concepto')}
-   - Explicación: {component.get('explanation', '')}
-   - Categoría: {component.get('category', 'general')}
-   - Importancia: {component.get('importance', 2)}/5
-   - Relaciones: {', '.join(component.get('relationships', []))}
-"""
+            composite_content += f"{i}. {component.get('concept', 'Concepto')} - {component.get('category', 'general')}\n"
         
-        composite_content += f"\nRESPUESTA ORIGINAL: {answer}"
-        composite_content += f"\n--- Memoria compuesta creada el {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+        composite_content += f"\nRESPUESTA: {answer}"
         
         # Calcular importancia promedio
         avg_importance = statistics.mean([comp.get('importance', 2) for comp in knowledge_components])
         
-        # Extraer tags únicos de todos los componentes
-        all_tags = set()
-        for component in knowledge_components:
-            all_tags.add(component.get('category', 'general'))
-            all_tags.update(comp.lower().replace(' ', '-') for comp in component.get('relationships', []))
-        
         return self.add_memory_enhanced(
             content=composite_content,
-            tags=list(all_tags),
+            tags=[comp.get('category', 'general') for comp in knowledge_components],
             memory_type="structure",
-            importance=min(5, int(avg_importance) + 1),  # Bonus por ser compuesta
+            importance=min(5, int(avg_importance)),
             related_to="architecture"
         )
     
     def _create_individual_memory(self, question: str, answer: str, knowledge_components: List[Dict], semantic_analysis: Dict) -> bool:
-        """
-        Crea una memoria individual estándar
-        """
-        print("   📄 Creando memoria individual...")
-        
-        # Usar el primer componente como base
+        """Crea memoria individual - versión optimizada"""
         main_component = knowledge_components[0] if knowledge_components else {
-            "concept": "Conocimiento técnico",
+            "concept": "Técnica/Concepto",
             "category": "general"
         }
         
@@ -404,26 +385,15 @@ COMPONENTES DE CONOCIMIENTO:
 
 CONOCIMIENTO: {answer}
 
-CONCEPTO PRINCIPAL: {main_component.get('concept', 'Técnica/Concepto')}
-CATEGORÍA: {main_component.get('category', 'general')}
-EXPLICACIÓN: {main_component.get('explanation', answer[:300])}
-
-TIPO: {semantic_analysis.get('knowledge_type', 'factual')}
-COMPLEJIDAD: {semantic_analysis.get('complexity_level', 2)}/5
-APLICABILIDAD: {semantic_analysis.get('applicability', 'general')}
-
---- Memoria creada automáticamente el {datetime.now().strftime('%Y-%m-%d %H:%M')}"""
-        
-        # Generar tags
-        tags = semantic_analysis.get('recommended_tags', [])
-        tags.append(main_component.get('category', 'general'))
+CONCEPTO: {main_component.get('concept', 'Técnica')}
+CATEGORÍA: {main_component.get('category', 'general')}"""
         
         return self.add_memory_enhanced(
             content=memory_content,
-            tags=tags,
-            memory_type=self._determine_memory_type(semantic_analysis),
+            tags=[main_component.get('category', 'general')],
+            memory_type="context",
             importance=main_component.get('importance', 2),
-            related_to=self._determine_related_to(main_component.get('category', ''))
+            related_to="programming"
         )
     
     def _determine_memory_type(self, semantic_analysis: Dict) -> str:
@@ -449,7 +419,6 @@ APLICABILIDAD: {semantic_analysis.get('applicability', 'general')}
     
     def _update_learning_metrics(self, success: bool, conversation_score: float):
         """Actualiza métricas de aprendizaje"""
-        # Actualizar tasa de éxito
         total_attempts = self.learning_metrics['total_conversations']
         current_success_rate = self.learning_metrics['success_rate']
         
@@ -457,48 +426,41 @@ APLICABILIDAD: {semantic_analysis.get('applicability', 'general')}
             new_success_rate = ((current_success_rate * (total_attempts - 1)) + (1 if success else 0)) / total_attempts
             self.learning_metrics['success_rate'] = new_success_rate
         
-        # Actualizar score promedio
         current_avg = self.learning_metrics['avg_conversation_score']
         new_avg = ((current_avg * (total_attempts - 1)) + conversation_score) / total_attempts
         self.learning_metrics['avg_conversation_score'] = new_avg
         
-        # Adaptar umbral cada 10 conversaciones
         if total_attempts % 10 == 0:
             self._adapt_threshold()
     
     def _adapt_threshold(self):
-        """Adapta el umbral basado en métricas recientes"""
+        """Adapta el umbral basado en métricas"""
         old_threshold = self.learning_metrics['adaptation_threshold']
         
-        # Si la tasa de éxito es muy baja, bajar el umbral
         if self.learning_metrics['success_rate'] < 0.2:
             new_threshold = max(0.3, old_threshold - 0.1)
-        # Si la tasa de éxito es muy alta, subir el umbral para mayor calidad
         elif self.learning_metrics['success_rate'] > 0.8:
             new_threshold = min(0.9, old_threshold + 0.05)
         else:
-            # Ajuste basado en score promedio
             score_ratio = self.learning_metrics['avg_conversation_score'] / old_threshold
-            if score_ratio > 1.2:  # Scores consistentemente altos
+            if score_ratio > 1.2:
                 new_threshold = min(0.9, old_threshold + 0.05)
-            elif score_ratio < 0.8:  # Scores consistentemente bajos
+            elif score_ratio < 0.8:
                 new_threshold = max(0.3, old_threshold - 0.05)
             else:
                 new_threshold = old_threshold
         
         if new_threshold != old_threshold:
-            print(f"   🔄 Umbral adaptado: {old_threshold:.2f} → {new_threshold:.2f}")
             self.learning_metrics['adaptation_threshold'] = new_threshold
             self.learning_metrics['last_adaptation'] = datetime.now()
     
     def _update_conversation_patterns(self, question: str, answer: str, success: bool):
         """Actualiza patrones de conversación"""
-        # Extraer patrón clave de la pregunta
         words = question.lower().split()
         key_words = [w for w in words if len(w) > 3 and w not in ['cómo', 'qué', 'cuál', 'porque']]
         
         if key_words:
-            pattern = ' '.join(key_words[:3])  # Usar hasta 3 palabras clave
+            pattern = ' '.join(key_words[:2])  # Menos palabras clave
             if pattern not in self.learning_metrics['conversation_patterns']:
                 self.learning_metrics['conversation_patterns'][pattern] = {
                     'attempts': 0,
@@ -510,7 +472,7 @@ APLICABILIDAD: {semantic_analysis.get('applicability', 'general')}
                 self.learning_metrics['conversation_patterns'][pattern]['successes'] += 1
     
     def get_learning_metrics(self) -> Dict[str, Any]:
-        """Retorna métricas actuales del sistema de aprendizaje"""
+        """Retorna métricas actuales"""
         return {
             'total_conversations': self.learning_metrics['total_conversations'],
             'memories_created': self.learning_metrics['memories_created'],
@@ -533,10 +495,10 @@ APLICABILIDAD: {semantic_analysis.get('applicability', 'general')}
         components = self.extract_knowledge_components(question, answer, {})
         return [comp.get('concept', '') for comp in components if comp.get('concept')]
     
-    def _call_llm_api(self, prompt: str, max_tokens: int = 1000) -> str:
-        """Llamada a la API de DeepSeek"""
+    def _call_llm_api(self, prompt: str, max_tokens: int = 500) -> str:
+        """Llamada a la API de DeepSeek - optimizada"""
         if not self.api_key:
-            raise Exception("API key no configurada para LLM")
+            raise Exception("API key no configurada")
             
         headers = {
             "Authorization": f"Bearer {self.api_key}",
@@ -555,56 +517,50 @@ APLICABILIDAD: {semantic_analysis.get('applicability', 'general')}
             "https://api.deepseek.com/v1/chat/completions",
             json=data, 
             headers=headers, 
-            timeout=30
+            timeout=20  # Timeout más corto
         )
         response.raise_for_status()
         return response.json()['choices'][0]['message']['content']
     
     def search_memories_enhanced(self, query: str, limit: int = 5, use_llm: bool = True) -> List[Dict[str, Any]]:
-        """Búsqueda mejorada que puede usar LLM para relevancia"""
-        if use_llm and self.api_key:
+        """Búsqueda mejorada - versión optimizada"""
+        if use_llm and self.api_key and len(query.split()) > 2:
             return self._search_with_llm_reranking(query, limit)
         else:
             return self.search_memories_simple(query, limit)
     
     def _search_with_llm_reranking(self, query: str, limit: int) -> List[Dict[str, Any]]:
-        """Búsqueda híbrida: keyword + re-ranking con LLM"""
-        # 1. Búsqueda inicial por keywords (rápida)
+        """Búsqueda con re-ranking LLM - optimizada"""
         candidate_memories = self.search_memories_simple(query, limit * 2)
         
-        if len(candidate_memories) <= 1:
+        if len(candidate_memories) <= 2:
             return candidate_memories
         
-        # 2. Re-ranking con LLM para los top candidatos
         try:
             ranked_indices = self._rerank_with_llm(query, candidate_memories)
-            reranked_memories = [candidate_memories[i] for i in ranked_indices[:limit]]
-            return reranked_memories
-        except Exception as e:
-            print(f"⚠️  Fallback a búsqueda simple: {e}")
+            return [candidate_memories[i] for i in ranked_indices[:limit]]
+        except Exception:
             return candidate_memories[:limit]
     
     def _rerank_with_llm(self, query: str, memories: List[Dict]) -> List[int]:
-        """Usa LLM para re-rankear memorias por relevancia"""
-        prompt = f"""Evalúa la relevancia de estas memorias con la consulta: "{query}"
+        """Re-rank con LLM - optimizado"""
+        prompt = f"""Relevancia con: "{query}"
 
-Memorias:
-{chr(10).join([f"{i+1}. {m['content'][:150]}..." for i, m in enumerate(memories)])}
+Opciones:
+{chr(10).join([f"{i+1}. {m['content'][:100]}..." for i, m in enumerate(memories)])}
 
-Devuelve SOLO los números de las 5 memorias más relevantes en orden descendente, separados por comas:"""
+Devuelve números de más relevantes:"""
 
-        response = self._call_llm_api(prompt, max_tokens=100)
+        response = self._call_llm_api(prompt, max_tokens=80)
         
-        # Parsear respuesta: "3, 1, 5, 2"
         try:
             ranked_numbers = [int(x.strip()) - 1 for x in response.split(',')]
             return ranked_numbers
         except:
-            # Fallback: devolver orden original
             return list(range(len(memories)))
     
     def search_memories_simple(self, query, limit=5):
-        """Búsqueda original por keywords"""
+        """Búsqueda simple por keywords - optimizada"""
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
@@ -630,7 +586,7 @@ Devuelve SOLO los números de las 5 memorias más relevantes en orden descendent
         if results:
             uuids = [row['uuid'] for row in results]
             placeholders = ','.join(['?'] * len(uuids))
-            cursor.execute(f'UPDATE memories SET use_count = use_count + 1, last_used = CURRENT_TIMESTAMP WHERE uuid IN ({placeholders})', uuids)
+            cursor.execute(f'UPDATE memories SET use_count = use_count + 1 WHERE uuid IN ({placeholders})', uuids)
             conn.commit()
         
         conn.close()
@@ -654,21 +610,11 @@ Devuelve SOLO los números de las 5 memorias más relevantes en orden descendent
     def add_memory_enhanced(self, content: str, tags: List[str] = None, 
                         memory_type: str = "context", importance: int = 2,
                         related_to: str = None) -> bool:
-        """
-        Versión mejorada de add_memory con deduplicación inteligente
-        """
-        print(f"🔧 Intentando crear memoria: {content[:50]}...")
-        
-        # Verificar duplicados antes de insertar (menos agresivo)
+        """Versión mejorada de add_memory"""
         is_duplicate = self._is_duplicate_memory(content)
-        print(f"   ¿Es duplicado?: {is_duplicate}")
         
         if is_duplicate:
-            print("🔍 Memoria similar existe, aumentando importancia...")
-            success = self._increase_existing_memory_importance(content)
-            if success:
-                print("✅ Importancia aumentada en memoria existente")
-            return success
+            return self._increase_existing_memory_importance(content)
         
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
@@ -685,15 +631,12 @@ Devuelve SOLO los números de las 5 memorias más relevantes en orden descendent
                 related_to
             ))
             
-            # Aplicar política LRU si es necesario
             self._apply_lru_policy()
-            
             conn.commit()
-            print("✅ Memoria creada exitosamente")
             return True
             
         except Exception as e:
-            print(f"❌ Error SQL guardando memoria: {e}")
+            print(f"❌ Error guardando memoria: {e}")
             conn.rollback()
             return False
         finally:
@@ -708,7 +651,6 @@ Devuelve SOLO los números de las 5 memorias más relevantes en orden descendent
         
         # Extraer palabras clave del contenido
         words = self._extract_keywords(content)
-        print(f"   Palabras clave extraídas: {words[:3]}")
         
         if not words:
             return False
@@ -720,11 +662,9 @@ Devuelve SOLO los números de las 5 memorias más relevantes en orden descendent
         conn.close()
         
         if exact_match:
-            print("   ❗ Coincidencia EXACTA encontrada")
             return True
         
         # Solo considerar duplicado si hay al menos 5 palabras clave en común
-        # y el contenido tiene alta similitud
         if len(words) >= 5:
             conditions = []
             params = []
@@ -732,17 +672,15 @@ Devuelve SOLO los números de las 5 memorias más relevantes en orden descendent
                 conditions.append("content LIKE ?")
                 params.append(f'%{word}%')
             
-            where_clause = " AND ".join(conditions)  # CAMBIADO: OR → AND (más estricto)
+            where_clause = " AND ".join(conditions)
             sql = f'SELECT COUNT(*) FROM memories WHERE {where_clause}'
             
             cursor.execute(sql, params)
             count = cursor.fetchone()[0]
             
             if count > 0:
-                print(f"   ❗ Similitud alta encontrada: {count} memorias similares")
                 return True
         
-        print("   ✅ No se encontraron duplicados")
         return False
     
     def _increase_existing_memory_importance(self, content: str) -> bool:
@@ -800,7 +738,7 @@ Devuelve SOLO los números de las 5 memorias más relevantes en orden descendent
         try:
             optimization_results = {}
             
-            # 1. Eliminar duplicados SEMÁNTICOS (no solo exactos)
+            # 1. Eliminar duplicados SEMÁNTICOS
             cursor.execute('''
                 WITH duplicates AS (
                     SELECT uuid, content,
@@ -816,7 +754,7 @@ Devuelve SOLO los números de las 5 memorias más relevantes en orden descendent
             ''')
             optimization_results['semantic_duplicates_removed'] = cursor.rowcount
             
-            # 2. Eliminar duplicados EXACTOS (backup)
+            # 2. Eliminar duplicados EXACTOS
             cursor.execute('''
                 DELETE FROM memories 
                 WHERE uuid NOT IN (
@@ -855,7 +793,7 @@ Devuelve SOLO los números de las 5 memorias más relevantes en orden descendent
             except sqlite3.OperationalError:
                 optimization_results['orphaned_relations_removed'] = 0
             
-            # 6. Reconstruir índices para mejor performance
+            # 6. Reconstruir índices
             cursor.execute('REINDEX idx_memories_content')
             cursor.execute('REINDEX idx_memories_importance')
             
@@ -865,14 +803,13 @@ Devuelve SOLO los números de las 5 memorias más relevantes en orden descendent
             
             conn.commit()
             
-            # Mensaje resumen
             total_optimizations = sum(optimization_results.values())
-            optimization_results['message'] = f'✅ Optimización completada: {total_optimizations} mejoras aplicadas'
+            optimization_results['message'] = f'✅ Optimización completada: {total_optimizations} mejoras'
             
             return optimization_results
             
         except Exception as e:
-            print(f"❌ Error optimizando memorias: {e}")
+            print(f"❌ Error optimizando: {e}")
             conn.rollback()
             return {'error': str(e)}
         finally:
@@ -893,7 +830,6 @@ Devuelve SOLO los números de las 5 memorias más relevantes en orden descendent
             if current_count > max_memories:
                 excess = current_count - max_memories
                 
-                # Eliminar las menos relevantes (combinación de uso + importancia + antigüedad)
                 cursor.execute('''
                     DELETE FROM memories 
                     WHERE uuid IN (
@@ -907,8 +843,6 @@ Devuelve SOLO los números de las 5 memorias más relevantes en orden descendent
                 
                 lru_results['memories_removed'] = cursor.rowcount
                 lru_results['new_total'] = current_count - excess
-                
-                print(f"🧹 LRU policy: {excess} memorias eliminadas")
             else:
                 lru_results['memories_removed'] = 0
                 lru_results['new_total'] = current_count
@@ -917,13 +851,13 @@ Devuelve SOLO los números de las 5 memorias más relevantes en orden descendent
             return lru_results
             
         except Exception as e:
-            print(f"❌ Error en LRU policy: {e}")
+            print(f"❌ Error en LRU: {e}")
             conn.rollback()
             return {'error': str(e)}
         finally:
             conn.close()
 
-# Función de compatibilidad para el script de inyección
+# Función de compatibilidad
 def inject_sample_memories(memory_manager: MemoryManager):
     """Inyecta memorias de muestra para testing"""
     sample_memories = [
