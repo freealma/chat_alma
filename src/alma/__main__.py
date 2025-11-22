@@ -8,7 +8,7 @@ functions: []
 ---
 """
 # src/alma/__main__.py
-from .alma import main
+from .core.alma import main
 
 if __name__ == "__main__":
     main()

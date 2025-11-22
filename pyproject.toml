@@ -1,11 +1,21 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "alma"
-version = "0.1.1"
+version = "1.0.0"
 dependencies = [
-    "requests>=2.25.0",
-    "langchain>=0.1.0",
-    "python-dotenv>=1.0.0",
+    "requests",
+    "python-dotenv",
+    "langchain", 
+    "llama-index",
 ]
 
 [project.scripts]
-alma = "alma.alma:main"
+alma = "alma.core.alma:main"
+alma-embeddings = "alma.scripts.embedding_generator:main"
+
+[tool.setuptools]
+packages = ["alma", "alma.core", "alma.scripts"]
+package-dir = {"" = "src"}

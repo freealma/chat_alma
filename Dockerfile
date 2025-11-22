@@ -1,15 +1,17 @@
-FROM python:3.11-alpine
+FROM python:3.11-slim
 
 WORKDIR /alma
 
-RUN apk add --no-cache sqlite
+RUN apt-get update && apt-get install -y \
+    sqlite3 \
+    gcc \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY pyproject.toml .
-COPY meta/schema.sql .
 COPY src/ ./src/
 
 RUN pip install --no-cache-dir -e .
 RUN mkdir -p db
 
-# Entry point directo
-CMD ["python", "-c", "from alma.alma import main; main()"]
+CMD ["alma"]
