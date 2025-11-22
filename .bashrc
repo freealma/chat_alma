@@ -1,5 +1,5 @@
 # Build and run Alma CLI Docker container
-alias build_alma='docker build -t alma-cli .'
+alias build='docker build -t alma-cli .'
 
 # Use Alma CLI with Docker
 alias alma='docker run -it --env-file .env -v $(pwd)/db:/alma/db alma-cli'
