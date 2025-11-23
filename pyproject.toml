@@ -8,14 +8,12 @@ version = "1.0.0"
 dependencies = [
     "requests",
     "python-dotenv",
-    "langchain", 
-    "llama-index",
+    "numpy",
 ]
 
 [project.scripts]
-alma = "alma.core.alma:main"
-alma-embeddings = "alma.scripts.embedding_generator:main"
+alma = "alma.__main__:main"
 
 [tool.setuptools]
-packages = ["alma", "alma.core", "alma.scripts"]
+packages = ["alma", "alma.core"]
 package-dir = {"" = "src"}

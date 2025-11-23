@@ -1,14 +1,23 @@
+#!/usr/bin/env python3
 """
----
-version: 0.0.1
-changelog: "Primera versión del paquete Alma"
-path: src/alma/__main__.py
-description: "Punto de entrada principal para el paquete Alma"
-functions: []
----
+Punto de entrada principal para Alma
 """
-# src/alma/__main__.py
-from .core.alma import main
+import argparse
+from alma.core.agent import AlmaAgent
+
+def main():
+    parser = argparse.ArgumentParser(description='Alma RAG System')
+    parser.add_argument('--embeddings', action='store_true', 
+                       help='Generate embeddings for chunks')
+    
+    args = parser.parse_args()
+    
+    agent = AlmaAgent()
+    
+    if args.embeddings:
+        agent.generate_embeddings()
+    else:
+        agent.chat_mode()
 
 if __name__ == "__main__":
     main()
