@@ -2,9 +2,8 @@ FROM python:3.11-slim
 
 WORKDIR /alma
 
-RUN apt-get update && apt-get install -y \
-    sqlite3 \
-    && rm -rf /var/lib/apt/lists/*
+# SOLUCIÓN: Solo actualizar repositorios, sqlite3 ya viene con Python
+RUN apt-get update && apt-get clean
 
 # Copiar TODO el proyecto
 COPY pyproject.toml .
