@@ -1,8 +1,9 @@
 FROM python:3.11
+
 WORKDIR /alma
 
-# Copiar solo lo necesario para instalar
-COPY pyproject.toml .
+COPY . .
 
-# Instalar sin scripts, solo dependencias
-RUN pip install --no-cache-dir .
+RUN pip install -e .
+
+CMD ["alma"]

@@ -1,8 +1,8 @@
 # Build and run Alma CLI Docker container
-alias build='docker build -t alma .'
+alias build='docker build --network=host -t alma .'
 
 # Use Alma CLI with Docker
-alias alma='docker run -it --env-file .env -v $(pwd)/db:/alma/db alma-cli'
+alias alma='docker run -it --env-file .env -v $(pwd)/db:/alma/db alma '
 
 # Comand to export all tables from alma.db to CSV files
 alias copy_tables='

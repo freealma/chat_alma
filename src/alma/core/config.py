@@ -8,17 +8,34 @@ import sqlite3
 from pathlib import Path
 from typing import Dict, Any
 
+#!/usr/bin/env python3
+# src/alma/core/config.py
+"""
+Configuración centralizada para Alma
+"""
+import os
+import sqlite3
+from pathlib import Path
+from typing import Dict, Any
+
 class AlmaConfig:
     """Configuración centralizada de Alma"""
     
     def __init__(self):
-        # Rutas base
-        self.base_dir = Path(__file__).parent.parent.parent
+        self.base_dir = Path.cwd() 
         self.db_path = self.base_dir / "db" / "alma.db"
         self.chunks_dir = self.base_dir / "data" / "chunks"
         
-        # API Keys
         self.deepseek_api_key = os.getenv('DEEPSEEK_API_KEY')
+        
+        # 🚨 DEBUG: Ver qué está pasando
+        print(f"🔍 DEBUG Config:")
+        print(f"   Working dir: {Path.cwd()}")
+        print(f"   Base dir: {self.base_dir}") 
+        print(f"   DB path: {self.db_path}")
+        print(f"   DB exists: {self.db_path.exists()}")
+        print(f"   DEEPSEEK_API_KEY in env: {'DEEPSEEK_API_KEY' in os.environ}")
+        print(f"   DEEPSEEK_API_KEY value: {os.getenv('DEEPSEEK_API_KEY')}")
         
         # Configuración de modelos
         self.embedding_model = "deepseek-embedding"
@@ -26,6 +43,8 @@ class AlmaConfig:
         
         # Configuración de la base de datos
         self._init_database()
+    
+    # ... el resto igual
     
     def _init_database(self):
         """Inicializar esquema de la base de datos"""

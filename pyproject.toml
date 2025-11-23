@@ -3,10 +3,13 @@ name = "alma"
 version = "1.0.0"
 dependencies = [
     "requests",
-    "numpy",
+    "numpy", 
     "langchain",
     "llama-index",
 ]
+
+[project.scripts]
+alma = "alma.__main__:main"
 
 [build-system]
 requires = ["setuptools", "wheel"]
