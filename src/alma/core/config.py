@@ -13,7 +13,7 @@ class AlmaConfig:
     
     def __init__(self):
         # Rutas base
-        self.base_dir = Path("/alma")
+        self.base_dir = Path(__file__).parent.parent.parent
         self.db_path = self.base_dir / "db" / "alma.db"
         self.chunks_dir = self.base_dir / "data" / "chunks"
         
