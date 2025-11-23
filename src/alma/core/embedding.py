@@ -1,45 +1,72 @@
 #!/usr/bin/env python3
 # src/alma/core/embedding.py
 """
-Módulo para gestión de embeddings con DeepSeek
+Módulo para gestión de embeddings con Hugging Face LOCAL
 """
 import json
 import hashlib
-import requests
 from typing import List, Dict, Optional
 from pathlib import Path
 
 from .config import AlmaConfig
 
-class DeepSeekEmbedder:
-    """Manejador de embeddings con DeepSeek API"""
+class HuggingFaceEmbedder:
+    """Manejador de embeddings con Hugging Face models LOCAL"""
     
     def __init__(self, config: AlmaConfig):
         self.config = config
-        self.base_url = "https://api.deepseek.com/v1"
+        self.model = None
+        self.tokenizer = None
+        self.model_name = "sentence-transformers/all-MiniLM-L6-v2"  # 🎯 MODELO LIVIANO
+        self._load_model()
+    
+    def _load_model(self):
+        """Cargar modelo local - OPTIMIZADO"""
+        try:
+            from transformers import AutoModel, AutoTokenizer
+            import torch
+            
+            print(f"🔄 Cargando modelo LOCAL: {self.model_name}")
+            
+            self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+            self.model = AutoModel.from_pretrained(
+                self.model_name,
+                torch_dtype=torch.float32,
+                low_cpu_mem_usage=True
+            )
+            
+            # SOLO CPU
+            self.model = self.model.to('cpu')
+            self.model.eval()
+            
+            print("✅ Modelo cargado en CPU")
+                
+        except Exception as e:
+            print(f"❌ Error cargando modelo: {e}")
+            raise
     
     def create_embedding(self, text: str) -> Optional[List[float]]:
         """Crear embedding para texto"""
-        headers = {
-            "Authorization": f"Bearer {self.config.deepseek_api_key}",
-            "Content-Type": "application/json"
-        }
-        
-        data = {
-            "input": text,
-            "model": self.config.embedding_model
-        }
-        
         try:
-            response = requests.post(
-                f"{self.base_url}/embeddings",
-                json=data,
-                headers=headers,
-                timeout=60
+            import torch
+            
+            if not text or len(text.strip()) < 10:
+                return None
+            
+            inputs = self.tokenizer(
+                text, 
+                padding=True, 
+                truncation=True, 
+                return_tensors="pt",
+                max_length=256
             )
-            response.raise_for_status()
-            result = response.json()
-            return result['data'][0]['embedding']
+            
+            with torch.no_grad():
+                outputs = self.model(**inputs)
+                embeddings = outputs.last_hidden_state.mean(dim=1).cpu().numpy()
+            
+            return embeddings[0].tolist()
+            
         except Exception as e:
             print(f"❌ Error creando embedding: {e}")
             return None
@@ -54,14 +81,11 @@ class DeepSeekEmbedder:
             with open(file_path, 'r', encoding='utf-8') as f:
                 content = f.read().strip()
             
-            if not content or len(content) < 100:
+            if not content or len(content) < 50:
                 return None
             
-            # Preprocesar contenido
             processed_content = self._preprocess_content(content)
             content_hash = self.calculate_content_hash(processed_content)
-            
-            # Generar embedding
             embedding = self.create_embedding(processed_content)
             
             return {
@@ -70,18 +94,17 @@ class DeepSeekEmbedder:
                 'content': processed_content,
                 'content_hash': content_hash,
                 'embedding': embedding,
-                'token_count': len(processed_content) // 4  # Aproximación
+                'token_count': len(processed_content.split())
             }
             
         except Exception as e:
             print(f"❌ Error procesando {file_path}: {e}")
             return None
     
-    def _preprocess_content(self, content: str, max_length: int = 4000) -> str:
+    def _preprocess_content(self, content: str, max_length: int = 1000) -> str:
         """Preprocesar contenido para embeddings"""
         import re
         
-        # Limpieza básica de markdown
         cleaned = re.sub(r'```.*?```', '', content, flags=re.DOTALL)
         cleaned = re.sub(r'#+\s*', '', cleaned)
         cleaned = re.sub(r'\*{1,2}(.*?)\*{1,2}', r'\1', cleaned)
@@ -111,7 +134,7 @@ class DeepSeekEmbedder:
                 chunk_data['content_hash'],
                 chunk_data['token_count'],
                 json.dumps(chunk_data['embedding']) if chunk_data['embedding'] else None,
-                self.config.embedding_model if chunk_data['embedding'] else None
+                self.model_name if chunk_data['embedding'] else None
             ))
             
             conn.commit()
@@ -135,14 +158,20 @@ class DeepSeekEmbedder:
             print("❌ No se encontraron archivos chunk_*.md")
             return
         
-        print(f"📁 Procesando {len(chunk_files)} chunks...")
+        print(f"📁 Procesando {len(chunk_files)} chunks con modelo LOCAL...")
         
         processed = 0
         for chunk_file in sorted(chunk_files):
             print(f"🔍 Procesando: {chunk_file.name}")
             
             chunk_data = self.process_chunk_file(chunk_file)
-            if chunk_data and self.save_chunk_to_db(chunk_data):
+            if chunk_data and chunk_data['embedding'] and self.save_chunk_to_db(chunk_data):
                 processed += 1
+                print(f"  ✅ Embedding generado")
+            else:
+                print(f"  ❌ Falló embedding")
         
-        print(f"✅ Embeddings generados: {processed}/{len(chunk_files)}")
+        print(f"🎉 Embeddings completados: {processed}/{len(chunk_files)}")
+
+# Alias para compatibilidad
+DeepSeekEmbedder = HuggingFaceEmbedder

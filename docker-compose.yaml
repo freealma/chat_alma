@@ -2,19 +2,11 @@ version: '3.8'
 
 services:
   alma:
-    build: 
-      context: .
-      dockerfile: Dockerfile
-    environment:
-      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+    build: .
     volumes:
-      - ./db:/alma/db
-      - ./data:/alma/data
-    stdin_open: true
-    tty: true
-    networks:
-      - alma-network
+      - .:/alma
+      - huggingface_cache:/root/.cache/huggingface
+    command: alma
 
-networks:
-  alma-network:
-    driver: bridge
+volumes:
+  huggingface_cache:
