@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# src/alma/__main__.py
 """
 Punto de entrada principal para Alma
 """

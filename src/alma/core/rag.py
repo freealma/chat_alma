@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# src/alma/core/rag.py
 """
 Módulo para Retrieval Augmented Generation
 """

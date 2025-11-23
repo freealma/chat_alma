@@ -1,41 +1,45 @@
--- schema.sql
--- version: 0.0.1
--- description: "Esquema de base de datos para la gestión de memorias en Alma CLI"
-
-CREATE TABLE IF NOT EXISTS memories (
+-- Schema optimizado para RAG con chunks y embeddings
+CREATE TABLE IF NOT EXISTS chunks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    uuid TEXT UNIQUE NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-a' || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
+    chunk_id TEXT UNIQUE NOT NULL,           -- chunk_001_en.md
+    file_path TEXT NOT NULL,
     content TEXT NOT NULL,
-    tags TEXT,
-    project TEXT,
-    theme TEXT,
+    content_hash TEXT UNIQUE NOT NULL,       -- Para evitar duplicados
+    token_count INTEGER DEFAULT 0,
+    language TEXT DEFAULT 'en',
+    category TEXT,
+    tags TEXT,                               -- JSON array
+    metadata TEXT,                           -- JSON con metadatos adicionales
+    embedding BLOB,                          -- Embedding vector serializado
+    embedding_model TEXT,                    -- Modelo usado para el embedding
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    importance INTEGER DEFAULT 2 CHECK (importance BETWEEN 1 AND 5),
-    related_to TEXT CHECK(related_to IN ('architecture', 'philosophy', 'pentesting', 'programming')),
-    memory_type TEXT CHECK(memory_type IN ('institutional', 'context', 'alma', 'bird', 'architecture', 'structure', 'function')),
-    use_count INTEGER DEFAULT 0,
-    last_used DATETIME DEFAULT CURRENT_TIMESTAMP
+    last_accessed DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS memory_relations (
+CREATE TABLE IF NOT EXISTS chunk_relations (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    source_uuid TEXT NOT NULL,
-    target_uuid TEXT NOT NULL,
-    relation_type TEXT NOT NULL,
-    strength REAL DEFAULT 1.0,
+    source_chunk_id TEXT NOT NULL,
+    target_chunk_id TEXT NOT NULL,
+    relation_type TEXT,                      -- similarity, reference, etc.
+    similarity_score REAL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (source_uuid) REFERENCES memories(uuid),
-    FOREIGN KEY (target_uuid) REFERENCES memories(uuid)
+    FOREIGN KEY (source_chunk_id) REFERENCES chunks(chunk_id),
+    FOREIGN KEY (target_chunk_id) REFERENCES chunks(chunk_id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_memories_tags ON memories(tags);
-CREATE INDEX IF NOT EXISTS idx_memories_importance ON memories(importance);
-CREATE INDEX IF NOT EXISTS idx_memories_use_count ON memories(use_count);
-CREATE INDEX IF NOT EXISTS idx_memories_related_to ON memories(related_to);
-CREATE INDEX IF NOT EXISTS idx_memories_memory_type ON memories(memory_type);
-CREATE INDEX IF NOT EXISTS idx_memories_last_used ON memories(last_used);
-CREATE INDEX IF NOT EXISTS idx_memories_uuid ON memories(uuid);
+CREATE TABLE IF NOT EXISTS conversations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT,
+    user_input TEXT NOT NULL,
+    ai_response TEXT NOT NULL,
+    used_chunks TEXT,                        -- JSON array de chunk_ids usados
+    context_summary TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
 
-CREATE INDEX IF NOT EXISTS idx_relations_source ON memory_relations(source_uuid);
-CREATE INDEX IF NOT EXISTS idx_relations_target ON memory_relations(target_uuid);
-CREATE INDEX IF NOT EXISTS idx_relations_type ON memory_relations(relation_type);
+-- Índices para optimizar búsquedas
+CREATE INDEX IF NOT EXISTS idx_chunks_content_hash ON chunks(content_hash);
+CREATE INDEX IF NOT EXISTS idx_chunks_category ON chunks(category);
+CREATE INDEX IF NOT EXISTS idx_chunks_created_at ON chunks(created_at);
+CREATE INDEX IF NOT EXISTS idx_chunk_relations_source ON chunk_relations(source_chunk_id);
+CREATE INDEX IF NOT EXISTS idx_chunk_relations_target ON chunk_relations(target_chunk_id);

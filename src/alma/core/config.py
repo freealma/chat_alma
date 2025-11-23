@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# src/alma/core/config.py
 """
 Configuración centralizada para Alma
 """

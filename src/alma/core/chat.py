@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# src/alma/core/chat.py
 """
 Módulo para manejo de conversaciones con DeepSeek
 """

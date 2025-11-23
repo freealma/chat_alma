@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  alma:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+    volumes:
+      - ./db:/alma/db
+      - ./data:/alma/data
+      - ./docs:/alma/docs
+    stdin_open: true
+    tty: true
+    networks:
+      - alma-network
+    # Usar DNS de Google como fallback
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+
+networks:
+  alma-network:
+    driver: bridge

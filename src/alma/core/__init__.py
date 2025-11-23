@@ -1,6 +1,7 @@
 """
 Alma Core Modules
 """
+# src/alma/core/__init__.py
 from .config import AlmaConfig
 from .embedding import DeepSeekEmbedder
 from .rag import RAGSystem

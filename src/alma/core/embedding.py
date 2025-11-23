@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# src/alma/core/embedding.py
 """
 Módulo para gestión de embeddings con DeepSeek
 """
