@@ -75,7 +75,7 @@ class AlmaLLMClient:
             return self.initialize()
         return True
 
-    def _make_api_call(self, prompt: str, max_tokens: int = 500) -> Optional[str]:
+    def _make_api_call(self, prompt: str, max_tokens: int = 4000) -> Optional[str]:
         """Hace una llamada real a la API de DeepSeek"""
         try:
             headers = {
