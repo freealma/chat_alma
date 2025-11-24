@@ -1,24 +1,5 @@
-#!/usr/bin/env python3
-# src/alma/__main__.py
-"""
-Punto de entrada principal para Alma
-"""
-import argparse
-from alma.core.agent import AlmaAgent
-
-def main():
-    parser = argparse.ArgumentParser(description='Alma RAG System')
-    parser.add_argument('--embeddings', action='store_true', 
-                       help='Generate embeddings for chunks')
-    
-    args = parser.parse_args()
-    
-    agent = AlmaAgent()
-    
-    if args.embeddings:
-        agent.generate_embeddings()
-    else:
-        agent.chat_mode()
+from alma.alma_agent import app
+import alma.commands  # Registra todos los comandos
 
 if __name__ == "__main__":
-    main()
+    app()

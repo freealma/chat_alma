@@ -1,20 +1,24 @@
-# /trece-app/docker-compose.yml
 services:
-  trece:
+  alma-agent:
     build: .
     container_name: alma_agent
     volumes:
       - ./src:/app/src
+      - ./logs:/app/logs
     working_dir: /app
     stdin_open: true
     tty: true
     networks:
-      - srv-network
+      - srv_srv-network
     environment:
-      - DATABASE_URL=postgresql://alma:umamia@psql:5433/hood
-    command: ["bash"]
+      - DB_HOST=psql
+      - DB_PORT=5432
+      - DB_NAME=hood
+      - DB_USER=alma
+      - DB_PASSWORD=umamia
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
 
 networks:
-  srv-network:
+  srv_srv-network:
     external: true
     name: srv_srv-network
