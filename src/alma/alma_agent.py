@@ -1,10 +1,11 @@
 import typer
+import os  # ⬅️ Agregar este import
 from rich.console import Console
 from rich.panel import Panel
 from rich.markdown import Markdown
 
 from alma.core.database import db_manager
-from alma.core.llm_client import llm_client  # ⬅️ CORREGIDO: importar la instancia
+from alma.core.llm_client import llm_client
 
 app = typer.Typer(
     name="alma",
@@ -19,12 +20,6 @@ console = Console()
 def main():
     """
     Alma Agent - Sistema de inteligencia para pentesting asistido
-    
-    Características principales:
-    • 🧠 Memoria contextual con PostgreSQL
-    • 🔍 Análisis automático de código
-    • 🌐 Herramientas de escaneo de red
-    • 🤖 Integración con DeepSeek vía LangChain
     """
     pass
 
@@ -33,7 +28,7 @@ def init():
     """Inicializa la base de datos de Alma Agent"""
     try:
         db_manager.init_database()
-        llm_client.initialize()  # ⬅️ Inicializar LLM también
+        llm_client.initialize()
         console.print("✅ [green]Base de datos de Alma Agent inicializada correctamente[/green]")
         console.print("✅ [green]Cliente LLM configurado[/green]")
     except Exception as e:
@@ -69,7 +64,6 @@ def status():
     except Exception as e:
         console.print(f"❌ [red]Error obteniendo estado: {e}[/red]")
 
-# Comando para probar LLM
 @app.command()
 def test_llm(prompt: str = typer.Argument("Hola Alma", help="Prompt para probar LLM")):
     """Prueba la conexión con el modelo LLM"""
@@ -77,11 +71,33 @@ def test_llm(prompt: str = typer.Argument("Hola Alma", help="Prompt para probar 
     response = llm_client.query(prompt)
     console.print(Panel(response, title="🤖 Respuesta LLM", border_style="blue"))
 
-# Registrar comandos de forma modular
-def register_commands():
-    """Registra todos los comandos modularmente"""
-    # Esto se hará automáticamente al importar los módulos
-    pass
+@app.command()
+def debug_env():
+    """Muestra las variables de entorno para diagnóstico"""
+    console.print("[bold]🔍 Variables de entorno:[/bold]")
+    env_vars = {
+        'DB_HOST': os.getenv('DB_HOST'),
+        'DB_PORT': os.getenv('DB_PORT'), 
+        'DB_NAME': os.getenv('DB_NAME'),
+        'DB_USER': os.getenv('DB_USER'),
+        'DB_PASSWORD': '***' if os.getenv('DB_PASSWORD') else None,
+        'DEEPSEEK_API_KEY': '***' if os.getenv('DEEPSEEK_API_KEY') else None
+    }
+    
+    for key, value in env_vars.items():
+        status = "✅" if value else "❌"
+        console.print(f"  {status} {key}: {value}")
+
+    # Verificar también los valores por defecto que se usarían
+    console.print("\n[bold]🔧 Valores que usaría DatabaseManager:[/bold]")
+    test_params = {
+        'host': os.getenv('DB_HOST', 'db'),
+        'port': os.getenv('DB_PORT', '5432'),
+        'database': os.getenv('DB_NAME', 'hood'),
+        'user': os.getenv('DB_USER', 'alma'),
+        'password': '***' if os.getenv('DB_PASSWORD') else '***'
+    }
+    console.print(f"  {test_params}")
 
 if __name__ == "__main__":
     app()

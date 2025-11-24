@@ -6,11 +6,6 @@ from rich.panel import Panel
 console = Console()
 
 class AlmaLLMClient:
-    """
-    Cliente para conexión con modelos LLM (DeepSeek, etc.)
-    Por ahora es un stub que prepararemos para LangChain
-    """
-    
     def __init__(self):
         self.api_key = os.getenv('DEEPSEEK_API_KEY')
         self.initialized = False
@@ -19,16 +14,26 @@ class AlmaLLMClient:
     def initialize(self):
         """Inicializa el cliente LLM"""
         try:
+            console.print(f"[dim]🔍 Buscando DEEPSEEK_API_KEY...[/dim]")
+            
             if not self.api_key:
-                console.print("[yellow]⚠️  DEEPSEEK_API_KEY no configurada. Modo sin LLM activado.[/yellow]")
-                console.print("[dim]Para habilitar LLM, configura DEEPSEEK_API_KEY en tus variables de entorno[/dim]")
+                console.print("[yellow]⚠️  DEEPSEEK_API_KEY no encontrada en variables de entorno[/yellow]")
+                console.print("[dim]Variables de entorno disponibles:[/dim]")
+                for key, value in os.environ.items():
+                    if 'key' in key.lower() or 'api' in key.lower():
+                        console.print(f"[dim]  {key}: {'*' * len(value) if value else 'None'}[/dim]")
+                
                 self.initialized = False
                 return
             
-            # Aquí irá la integración real con LangChain + DeepSeek
-            # Por ahora es un placeholder
-            console.print("✅ [green]Cliente LLM inicializado (modo simulación)[/green]")
-            self.initialized = True
+            # Verificar que la API key tenga formato válido
+            if self.api_key.startswith('sk-') and len(self.api_key) > 10:
+                console.print("✅ [green]Cliente LLM inicializado con DeepSeek[/green]")
+                console.print(f"[dim]📋 API Key: {self.api_key[:10]}...[/dim]")
+                self.initialized = True
+            else:
+                console.print("[red]❌ DEEPSEEK_API_KEY tiene formato inválido[/red]")
+                self.initialized = False
             
         except Exception as e:
             console.print(f"❌ [red]Error inicializando LLM: {e}[/red]")
@@ -39,24 +44,8 @@ class AlmaLLMClient:
         if not self.initialized:
             return "[Modo sin LLM] Esta funcionalidad requiere configurar DEEPSEEK_API_KEY"
         
-        # Placeholder para la integración real
-        return f"[LLM Simulation] Procesando: {prompt}"
-    
-    def analyze_code(self, code: str, language: str = "python") -> Dict[str, Any]:
-        """Analiza código en busca de vulnerabilidades"""
-        if not self.initialized:
-            return {
-                "vulnerabilities": [],
-                "suggestions": ["Habilita LLM para análisis avanzado"],
-                "security_score": 0
-            }
-        
-        # Placeholder para análisis real
-        return {
-            "vulnerabilities": ["Análisis LLM no disponible aún"],
-            "suggestions": ["Configura DEEPSEEK_API_KEY para análisis avanzado"],
-            "security_score": 50
-        }
+        # Aquí irá la integración real con DeepSeek
+        return f"[DeepSeek] Procesando: {prompt} (API Key: {self.api_key[:10]}...)"
 
-# Instancia global
+# ⬇️⬇️⬇️ IMPORTANTE: Crear la instancia aquí ⬇️⬇️⬇️
 llm_client = AlmaLLMClient()

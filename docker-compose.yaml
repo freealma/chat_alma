@@ -10,13 +10,8 @@ services:
     tty: true
     networks:
       - srv_srv-network
-    environment:
-      - DB_HOST=psql
-      - DB_PORT=5432
-      - DB_NAME=hood
-      - DB_USER=alma
-      - DB_PASSWORD=umamia
-      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+    env_file:
+      - ./.env
 
 networks:
   srv_srv-network:
