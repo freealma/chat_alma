@@ -95,5 +95,50 @@ class DatabaseManager:
         finally:
             conn.close()
 
+    def update_memory_priority(self, memory_id: int, access_type: str = "read"):
+        """Actualiza dinámicamente la prioridad de una memoria basado en uso"""
+        try:
+            conn = self.get_connection()
+            with conn.cursor() as cur:
+                # Obtener memoria actual
+                cur.execute("""
+                    SELECT importance, metadata 
+                    FROM alma_memories 
+                    WHERE id = %s
+                """, (memory_id,))
+                memory = cur.fetchone()
+                
+                if not memory:
+                    return
+                
+                current_importance = memory[0]
+                metadata = memory[1] or {}
+                
+                # Actualizar contadores de uso en metadata
+                usage_count = metadata.get('usage_count', 0) + 1
+                last_accessed = datetime.now().isoformat()
+                
+                # Calcular nueva importancia (máx 5, mín 1)
+                new_importance = min(5, current_importance + 0.1)  # Incremento pequeño por uso
+                
+                # Si es muy antigua y no se usa, disminuir importancia
+                days_since_creation = (datetime.now() - memory[2]).days if len(memory) > 2 else 0
+                if days_since_creation > 30 and usage_count < 3:
+                    new_importance = max(1, current_importance - 0.5)
+                
+                # Actualizar memoria
+                cur.execute("""
+                    UPDATE alma_memories 
+                    SET importance = %s, 
+                        metadata = jsonb_set(COALESCE(metadata, '{}'::jsonb), '{usage_count}', %s),
+                        metadata = jsonb_set(metadata, '{last_accessed}', %s)
+                    WHERE id = %s
+                """, (new_importance, usage_count, f'"{last_accessed}"', memory_id))
+                
+                conn.commit()
+                
+        except Exception as e:
+            console.print(f"[yellow]⚠️  Error actualizando prioridad: {e}[/yellow]")
+
 # ⬇️⬇️⬇️ IMPORTANTE: Crear la instancia aquí ⬇️⬇️⬇️
 db_manager = DatabaseManager()
