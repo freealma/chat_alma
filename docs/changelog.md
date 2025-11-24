@@ -5,7 +5,7 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Versionado Semántico](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.0] - 2024-11-24
+## [0.1.1] - 2025-11-24
 
 ### 🚀 Agregado
 - **Sistema de Memoria Contextual**: 
