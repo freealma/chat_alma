@@ -1,5 +1,5 @@
 import typer
-import os  # ⬅️ Agregar este import
+import os
 from rich.console import Console
 from rich.panel import Panel
 from rich.markdown import Markdown
@@ -21,16 +21,21 @@ def main():
     """
     Alma Agent - Sistema de inteligencia para pentesting asistido
     """
-    pass
+    # ⬇️ Inicializar LLM automáticamente al inicio
+    llm_client.ensure_initialized()
 
 @app.command()
 def init():
     """Inicializa la base de datos de Alma Agent"""
     try:
         db_manager.init_database()
-        llm_client.initialize()
+        if llm_client.initialize():  # ⬅️ Ahora retorna bool
+            console.print("✅ [green]Cliente DeepSeek LLM configurado y conectado[/green]")
+        else:
+            console.print("[yellow]⚠️  Cliente LLM no pudo inicializarse[/yellow]")
+            
         console.print("✅ [green]Base de datos de Alma Agent inicializada correctamente[/green]")
-        console.print("✅ [green]Cliente LLM configurado[/green]")
+            
     except Exception as e:
         console.print(f"❌ [red]Error inicializando Alma Agent: {e}[/red]")
 
@@ -46,7 +51,8 @@ def status():
             cur.execute("SELECT COUNT(*) FROM pentest_sessions WHERE status = 'active'")
             active_sessions = cur.fetchone()[0]
         
-        llm_status = "✅ Conectado" if llm_client.initialized else "❌ No configurado"
+        # ⬇️ Usar el método is_initialized() en lugar de acceder directamente al atributo
+        llm_status = "✅ Conectado" if llm_client.is_initialized() else "❌ No configurado"
         
         status_info = f"""
 🧠 **Memorias almacenadas**: {memory_count}
@@ -68,8 +74,18 @@ def status():
 def test_llm(prompt: str = typer.Argument("Hola Alma", help="Prompt para probar LLM")):
     """Prueba la conexión con el modelo LLM"""
     console.print(f"🧠 [bold]Probando LLM con prompt:[/bold] {prompt}")
+    
+    # ⬇️ Asegurar inicialización antes de la consulta
+    if not llm_client.ensure_initialized():
+        console.print("[red]❌ No se pudo inicializar DeepSeek LLM[/red]")
+        return
+        
     response = llm_client.query(prompt)
-    console.print(Panel(response, title="🤖 Respuesta LLM", border_style="blue"))
+    console.print(Panel(
+        Markdown(response),  # ⬅️ Usar Markdown para mejor formato
+        title="🤖 Respuesta DeepSeek", 
+        border_style="blue"
+    ))
 
 @app.command()
 def debug_env():
@@ -87,17 +103,6 @@ def debug_env():
     for key, value in env_vars.items():
         status = "✅" if value else "❌"
         console.print(f"  {status} {key}: {value}")
-
-    # Verificar también los valores por defecto que se usarían
-    console.print("\n[bold]🔧 Valores que usaría DatabaseManager:[/bold]")
-    test_params = {
-        'host': os.getenv('DB_HOST', 'db'),
-        'port': os.getenv('DB_PORT', '5432'),
-        'database': os.getenv('DB_NAME', 'hood'),
-        'user': os.getenv('DB_USER', 'alma'),
-        'password': '***' if os.getenv('DB_PASSWORD') else '***'
-    }
-    console.print(f"  {test_params}")
 
 if __name__ == "__main__":
     app()
