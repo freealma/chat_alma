@@ -104,5 +104,24 @@ def debug_env():
         status = "✅" if value else "❌"
         console.print(f"  {status} {key}: {value}")
 
+# =============================================================================
+# REGISTRO DE COMANDOS MODULARES
+# =============================================================================
+try:
+    from alma.commands.memory_ops import memory_app
+    app.add_typer(memory_app, name="memory", help="Sistema de memoria de Alma")
+    console.print("[dim]✅ Comandos de memoria registrados[/dim]")
+except ImportError as e:
+    console.print(f"[yellow]⚠️  No se pudieron cargar comandos de memoria: {e}[/yellow]")
+
+try:
+    from alma.commands.code_review import code_app  
+    app.add_typer(code_app, name="code", help="Análisis de código con LLM")
+    console.print("[dim]✅ Comandos de análisis de código registrados[/dim]")
+except ImportError as e:
+    console.print(f"[yellow]⚠️  No se pudieron cargar comandos de código: {e}[/yellow]")
+
+# =============================================================================
+
 if __name__ == "__main__":
     app()
