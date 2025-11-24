@@ -1,12 +1,20 @@
-version: '3.8'
-
+# /trece-app/docker-compose.yml
 services:
-  alma:
+  trece:
     build: .
+    container_name: alma_agent
     volumes:
-      - .:/alma
-      - huggingface_cache:/root/.cache/huggingface
-    command: alma
+      - ./src:/app/src
+    working_dir: /app
+    stdin_open: true
+    tty: true
+    networks:
+      - srv-network
+    environment:
+      - DATABASE_URL=postgresql://alma:umamia@psql:5433/hood
+    command: ["bash"]
 
-volumes:
-  huggingface_cache:
+networks:
+  srv-network:
+    external: true
+    name: srv_srv-network

@@ -1,2 +1,0 @@
-id,user_input,ai_response,used_chunks,context_used,created_at
-1,"Can you answer y with your memories from alma architecture ?","❌ API Error: HTTPSConnectionPool(host='api.deepseek.com', port=443): Max retries exceeded with url: /v1/chat/completions (Caused by NameResolutionError(""<urllib3.connection.HTTPSConnection object at 0x7f69bb866590>: Failed to resolve 'api.deepseek.com' ([Errno -3] Temporary failure in name resolution)""))",,"","2025-11-23 08:53:49"

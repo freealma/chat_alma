@@ -6,8 +6,6 @@ dependencies = [
     "numpy", 
     "langchain",
     "llama-index",
-    "torch",
-    "transformers",
 ]
 
 [project.scripts]
