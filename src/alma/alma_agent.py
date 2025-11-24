@@ -87,6 +87,8 @@ def test_llm(prompt: str = typer.Argument("Hola Alma", help="Prompt para probar 
         border_style="blue"
     ))
 
+# ... todo el código existente hasta debug_env ...
+
 @app.command()
 def debug_env():
     """Muestra las variables de entorno para diagnóstico"""
@@ -104,9 +106,8 @@ def debug_env():
         status = "✅" if value else "❌"
         console.print(f"  {status} {key}: {value}")
 
-# =============================================================================
-# REGISTRO DE COMANDOS MODULARES
-# =============================================================================
+# ⬇️⬇️⬇️ REGISTRO DE COMANDOS MODULARES - ACTUALIZADO ⬇️⬇️⬇️
+
 try:
     from alma.commands.memory_ops import memory_app
     app.add_typer(memory_app, name="memory", help="Sistema de memoria de Alma")
@@ -120,6 +121,14 @@ try:
     console.print("[dim]✅ Comandos de análisis de código registrados[/dim]")
 except ImportError as e:
     console.print(f"[yellow]⚠️  No se pudieron cargar comandos de código: {e}[/yellow]")
+
+# ⬇️⬇️⬇️ NUEVO: Comandos de crecimiento ⬇️⬇️⬇️
+try:
+    from alma.commands.agent_growth import growth_app
+    app.add_typer(growth_app, name="growth", help="Crecimiento y autonomía del agente")
+    console.print("[dim]✅ Comandos de crecimiento registrados[/dim]")
+except ImportError as e:
+    console.print(f"[yellow]⚠️  No se pudieron cargar comandos de crecimiento: {e}[/yellow]")
 
 # =============================================================================
 

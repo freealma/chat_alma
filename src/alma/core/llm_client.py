@@ -140,55 +140,47 @@ class AlmaLLMClient:
         else:
             return "[Error] No se pudo obtener respuesta de DeepSeek"
     
-    def analyze_code(self, code: str, language: str = "python") -> Dict[str, Any]:
-        """Analiza código en busca de vulnerabilidades usando DeepSeek"""
-        if not self.ensure_initialized():
-            return {
-                "vulnerabilities": ["LLM no configurado"],
-                "suggestions": ["Configura DEEPSEEK_API_KEY para análisis avanzado"],
-                "security_score": 0,
-                "risk_level": "desconocido"
-            }
-        
-        prompt = f"""
-Analiza el siguiente código {language} en busca de vulnerabilidades de seguridad:
+def analyze_code(self, code: str, language: str = "python") -> Dict[str, Any]:
+    """Analiza código para mejoras de autonomía del agente"""
+    if not self.ensure_initialized():
+        return {"error": "LLM no configurado"}
+    
+    prompt = f"""
+Como experto en arquitectura de agentes AI, analiza este código {language} para Alma Agent.
 
+ENFOQUE: Mejoras técnicas para AUTONOMÍA y CRECIMIENTO del agente
+
+Código:
 ```{language}
 {code}
 ```
 
-Responde en formato JSON con:
-- "vulnerabilities": lista de vulnerabilidades encontradas
-- "suggestions": lista de sugerencias para mejorar la seguridad  
-- "security_score": puntuación del 1 al 100
-- "risk_level": "bajo", "medio" o "alto"
+Responde SOLO en JSON con:
+- "autonomy_improvements": [mejoras para autonomía]
+- "next_features": [features sugeridas]  
+- "architecture_issues": [problemas arquitectónicos]
+- "learning_opportunities": [oportunidades de aprendizaje]
+- "priority": "alta|media|baja"
+
+ENFÓCATE EN:
+• Cómo hacer el agente más autónomo
+• Capacidades de reasoning que faltan
+• Sistema de memoria mejorado
+• Toma de decisiones automática
+• Procesamiento de contexto
 """
-        
-        response = self._make_api_call(prompt, max_tokens=1000)
-        
-        if response:
-            try:
-                # Intentar parsear JSON de la respuesta
-                import json
-                # Limpiar la respuesta (puede venir con markdown)
-                cleaned_response = response.replace('```json', '').replace('```', '').strip()
-                return json.loads(cleaned_response)
-            except:
-                # Si no es JSON válido, devolver como texto
-                return {
-                    "vulnerabilities": ["No se pudo analizar automáticamente"],
-                    "suggestions": [response],
-                    "security_score": 50,
-                    "risk_level": "medio",
-                    "raw_response": response
-                }
-        else:
-            return {
-                "vulnerabilities": ["Error en el análisis"],
-                "suggestions": ["No se pudo conectar al servicio de análisis"],
-                "security_score": 0,
-                "risk_level": "desconocido"
-            }
+    
+    response = self._make_api_call(prompt, max_tokens=2000)
+    
+    if response:
+        try:
+            # Parsear simple
+            cleaned = response.replace('```json', '').replace('```', '').strip()
+            return json.loads(cleaned)
+        except:
+            return {"analysis": response}
+    return {"error": "Sin respuesta"}
+
 
 # Instancia global - SINGLETON
 llm_client = AlmaLLMClient()
