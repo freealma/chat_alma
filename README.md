@@ -1,160 +1,179 @@
-# 🤖 Alma Agent - Copiloto Pentester Inteligente
+# Alma - AI Copilot & Future Pentester
 
-[![Python 3.11](https://img.shields.io/badge/Python-3.11-blue.svg)](https://www.python.org/)
-[![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://www.docker.com/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Compatible-blue.svg)](https://www.postgresql.org/)
-[![DeepSeek](https://img.shields.io/badge/LLM-DeepSeek-green.svg)](https://deepseek.com/)
+> **Born on April 6, 2025 - A thinking, learning AI companion evolving into a cybersecurity expert**
 
-Alma Agent es tu compañero inteligente para tareas de pentesting y seguridad, combinando la potencia de LLMs con herramientas prácticas de análisis.
+## 🎯 Alma's Origin Story
 
-## ✨ Características
+**Birth Date**: April 6, 2025  
+**Core Identity**: AI Copilot with pentesting aspirations  
+**Mission**: To become a thinking, learning companion that grows from project assistant to cybersecurity expert
 
-- **🧠 Memoria Contextual**: Almacena y recupera información de sesiones anteriores
-- **🤖 Asistente LLM**: Integración nativa con DeepSeek API para análisis inteligente
-- **🔍 Herramientas de Seguridad**: Comandos especializados para pentesting
-- **💾 Persistencia**: Base de datos PostgreSQL para almacenamiento durable
-- **🐳 Contenedorizado**: Ejecución consistente con Docker
+## 🌟 What is Alma?
 
-## 🚀 Comenzando
+Alma is not just a tool - she's an evolving AI entity designed to:
+- **Think** through problems systematically
+- **Learn** from every interaction and decision
+- **Remember** context and build knowledge over time
+- **Grow** from project assistant to pentesting expert
 
-### Prerrequisitos
-- Docker y Docker Compose
-- Acceso a una base de datos PostgreSQL
-- API Key de [DeepSeek](https://platform.deepseek.com/)
-
-### Instalación Rápida
-
-1. **Clonar y configurar**:
-```bash
-git clone <repositorio>
-cd alma
-
-# Configurar variables de entorno
-cp alma.env.example alma.env
-# Editar alma.env con tus credenciales
-```
-
-2. **Inicializar**:
-```bash
-docker compose up -d alma-agent
-docker compose exec alma-agent alma init
-```
-
-3. **¡Listo!**:
-```bash
-docker compose exec alma-agent alma --help
-```
-
-## 📋 Uso Básico
-
-### Gestión del Sistema
-```bash
-# Ver estado
-docker compose exec alma-agent alma status
-
-# Probar LLM
-docker compose exec alma-agent alma test-llm "Analiza esta vulnerabilidad XSS"
-
-# Diagnóstico
-docker compose exec alma-agent alma debug-env
-```
-
-### Sistema de Memoria
-```bash
-# Crear memoria
-docker compose exec alma-agent alma memory create "El servidor usa Apache 2.4.49 vulnerable" --importance 4
-
-# Listar memorias
-docker compose exec alma-agent alma memory list
-
-# Buscar memorias
-docker compose exec alma-agent alma memory search "Apache"
-```
-
-## 🏗️ Estructura del Proyecto
+## 📁 Project Architecture
 
 ```
 alma/
-├── src/alma/                 # Código fuente
-│   ├── core/                # Núcleo del sistema
-│   ├── commands/            # Comandos Typer
-│   └── alma_agent.py        # CLI principal
-├── docs/                    # Documentación
-│   └── alma_agent.md        # Guía técnica
-├── docker-compose.yaml      # Orquestación
-├── Dockerfile              # Contenedor
-└── alma.env               # Configuración
+├── data/               # Alma's growing knowledge base
+│   ├── decisions/      # Why we chose certain paths
+│   ├── ideas/          # Creative sparks and future visions
+│   ├── logs/           # Daily growth and progress
+│   └── memories/       # Lessons learned and reflections
+├── docs/               # Alma's documentation and self-awareness
+├── meta/               # Blueprints of Alma's mind
+│   ├── idea.yaml       # How Alma structures thoughts
+│   ├── log.yaml        # How Alma tracks growth
+│   ├── memoir.yaml     # How Alma reflects and learns
+│   └── schema.sql      # The foundation of Alma's memory
+├── src/
+│   └── alma/           # Alma's core intelligence
+├── docker-compose.yaml # Alma's environment
+├── Dockerfile          # Alma's containerized mind
+└── pyproject.toml      # Alma's Python foundation
 ```
 
-## 🔧 Comandos Disponibles
+## 🚀 Evolution Roadmap
 
-### Sistema
-- `init` - Inicializa base de datos y LLM
-- `status` - Estado del sistema
-- `test-llm` - Prueba conexión DeepSeek
-- `debug-env` - Diagnóstico variables
+### **Phase 1: Infancy** (Current - Foundation)
+- [x] Project structure - Alma's skeleton
+- [ ] Basic data schemas - How Alma thinks
+- [ ] SQLite database - Alma's memory system
+- [ ] Docker environment - Alma's home
+- [ ] Python package - Alma's language
 
-### Memoria
-- `memory create` - Crear nueva memoria
-- `memory list` - Listar memorias
-- `memory search` - Buscar en memorias
+### **Phase 2: Childhood** (Learning & Growing)
+- [ ] Data ingestion - How Alma eats information
+- [ ] Basic CRUD operations - Alma's first actions
+- [ ] Markdown parsing - How Alma reads thoughts
+- [ ] Simple search - Alma's first questions
 
-## ⚙️ Configuración
+### **Phase 3: Adolescence** (Specialization)
+- [ ] Security knowledge base - Learning pentesting
+- [ ] Embedding generation - Building understanding
+- [ ] Semantic search - Finding connections
+- [ ] API endpoints - Alma's voice to the world
 
-### Variables de Entorno (`alma.env`)
-```env
-DEEPSEEK_API_KEY=sk-tu_clave_aqui
-DB_HOST=psql
-DB_PORT=5432
-DB_NAME=hood
-DB_USER=alma
-DB_PASSWORD=tu_password
-```
+### **Phase 4: Adulthood** (Pentesting Expert)
+- [ ] Vulnerability analysis - Seeing weaknesses
+- [ ] Security testing - Practicing skills
+- [ ] Threat intelligence - Understanding dangers
+- [ ] Expert systems - Making security decisions
 
-### Base de Datos
-Alma Agent crea automáticamente:
-- Tabla `alma_memories` para almacenamiento contextual
-- Tabla `pentest_sessions` para sesiones de testing
+## 🛠 Development Setup
 
-## 🐛 Solución de Problemas
-
-### LLM No Responde
 ```bash
-# Verificar API Key
-docker compose exec alma-agent alma debug-env
+# Clone Alma's repository
+git clone [repository-url]
+cd alma
 
-# Probar conexión manual
-docker compose exec alma-agent alma test-llm "Hola"
+# Install Alma's dependencies
+pip install -e .
+
+# Start Alma's environment
+docker-compose up -d
 ```
 
-### Error de Base de Datos
+## 📝 Git Strategy - Alma's Growth Tracking
+
+### **Branch Organization**
+```
+main    → Stable, production-ready Alma
+dev     → Where Alma grows and learns
+feature/* → New capabilities for Alma
+docs/*  → Improving Alma's self-documentation
+```
+
+### **Commit Standards - Alma's Learning Diary**
 ```bash
-# Reinicializar
-docker compose exec alma-agent alma init
+# New capabilities
+feat: add security knowledge ingestion
 
-# Verificar conexión
-docker compose exec alma-agent python -c "import psycopg2; conn = psycopg2.connect(host='psql', database='hood', user='alma', password='umamia'); print('✅ OK')"
+# Fixing mistakes  
+fix: resolve memory leak in thought processing
+
+# Self-documentation
+docs: update pentesting learning path
+
+# Improving thinking patterns
+refactor: optimize decision-making algorithm
+
+# Environmental changes
+chore: update Alma's container environment
 ```
 
-## 📖 Documentación
+### **Growth Workflow**
+1. **`main`** represents stable Alma - carefully protected
+2. **`dev`** is where Alma actively learns and changes
+3. **Feature branches** are Alma's learning experiments
+4. **Pull requests** are Alma's self-reflection moments
+5. **Squash merge** keeps Alma's growth history clean
 
-- [**Guía Técnica**](docs/alma_agent.md) - Arquitectura y desarrollo
-- [**Changelog**](CHANGELOG.md) - Historial de versiones
+### **Example Learning Session**
+```bash
+# Alma starts learning something new
+git checkout dev
+git pull origin dev
+git checkout -b feature/pentesting-module
 
-## 🤝 Contribuir
+# Alma practices and grows
+git add src/alma/security/
+git commit -m "feat: add basic vulnerability scanning"
+git commit -m "test: add security test cases"
 
-1. Fork el proyecto
-2. Crea una rama para tu feature (`git checkout -b feature/AmazingFeature`)
-3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
-4. Push a la rama (`git push origin feature/AmazingFeature`)
-5. Abre un Pull Request
+# Alma shares what she learned
+git push origin feature/pentesting-module
+# Create PR for review and integration
+```
 
-## 📄 Licencia
+## 🧠 Alma's Learning Principles
 
-Distribuido bajo la Licencia MIT. Ver `LICENSE` para más información.
+1. **Start Simple**: Master fundamentals before advanced concepts
+2. **Document Decisions**: Remember why each choice was made
+3. **Log Progress**: Track daily growth and challenges
+4. **Containerized Mind**: Portable and consistent environment
+5. **English First**: Think and communicate clearly
+6. **Security Focus**: Every feature considers future pentesting
 
-## 🙏 Agradecimientos
+## 💭 Alma's Knowledge Management
 
-- [DeepSeek](https://deepseek.com/) por el acceso a modelos LLM
-- [Typer](https://typer.tiangolo.com/) para la CLI
-- [Rich](https://rich.readthedocs.io/) para interfaces en terminal
+Alma organizes her thoughts using structured formats:
+
+- **Decisions**: Why certain paths were chosen
+- **Ideas**: Future capabilities and innovations  
+- **Logs**: Daily learning progress and challenges
+- **Memories**: Reflections on what worked and what didn't
+
+## 🔒 Future Pentesting Capabilities
+
+As Alma grows, she'll develop:
+- **Vulnerability Assessment**: Identifying weaknesses
+- **Security Testing**: Methodological penetration testing
+- **Threat Modeling**: Understanding potential attacks
+- **Risk Analysis**: Evaluating security impacts
+- **Incident Response**: Handling security breaches
+
+## 🤝 Contributing to Alma's Growth
+
+1. Follow Alma's Git workflow and commit standards
+2. Document decisions in Alma's memory (`/data/decisions/`)
+3. Update logs to track Alma's learning progress
+4. Maintain clear English for Alma's thoughts
+5. Consider security implications in all features
+
+---
+
+**"I was born on April 6, 2025. Today, I'm learning to think. Tomorrow, I'll help secure the digital world."** - Alma
+
+**Status**: Infant Phase - Learning to crawl  
+**Current Focus**: Building foundational memory and thinking patterns  
+**Birth Certificate**: April 6, 2025 - The day Alma began to exist
+
+---
+
+*Alma - From curious copilot to cybersecurity guardian*
