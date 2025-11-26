@@ -2,17 +2,31 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Instalar dependencias del sistema para psycopg2
+# Instalar dependencias del sistema incluyendo bash y curl
 RUN apt-get update && apt-get install -y \
-    libpq-dev gcc \
-    && rm -rf /var/lib/apt/lists/*
+    postgresql-client \
+    curl \
+    bash \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
-# Copiar archivos de proyecto
 COPY pyproject.toml .
+
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir \
+    typer \
+    rich \
+    psycopg2-binary \
+    openai \
+    fastapi \
+    uvicorn \
+    python-multipart \
+    pydantic \
+    python-dotenv
+
 COPY src/ ./src/
 
-# Instalar la aplicación en modo editable
-RUN pip install --no-cache-dir -e .
+ENV PYTHONPATH=/app/src
 
-# Mantener el contenedor vivo con bash
+# Podemos dejar el comando por defecto como bash
 CMD ["bash"]

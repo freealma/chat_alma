@@ -1,12 +1,2 @@
-"""
----
-version: 0.0.1
-changelog: "Primera versión del paquete Alma"
-path: src/alma/__init__.py
-description: "Inicializador del paquete Alma"
-functions: []
----
-"""
-# src/alma/__init__.py
-__version__ = "1.0.0"
-__all__ = []
+"""Alma Agent - Sistema Autónomo con Memoria"""
+__version__ = "0.2.0"

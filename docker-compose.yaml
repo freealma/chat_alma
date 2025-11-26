@@ -1,10 +1,11 @@
 services:
   alma-agent:
-    build: .
+    build: 
+      context: .
+      dockerfile: Dockerfile
     container_name: alma_agent
     volumes:
       - ./src:/app/src
-      - ./logs:/app/logs
     working_dir: /app
     stdin_open: true
     tty: true
@@ -12,6 +13,9 @@ services:
       - srv_srv-network
     env_file:
       - ./.env
+    ports:
+      - "8000:8000"
+    command: ["bash"]
 
 networks:
   srv_srv-network:
